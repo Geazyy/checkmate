@@ -1,98 +1,281 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Camera } from 'lucide-react-native';
+import { AppHeader } from '../components/common/Header';
+import { useExamStore } from '../store/useExamStore';
+import { useScanStore } from '../store/useScanStore';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { exams, classes, setActiveExam, setSelectedClass } = useExamStore();
+  const { scannedResults } = useScanStore();
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.screen}>
+      <AppHeader title="CheckMate Dashboard" />
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Quick Action Navigation Grid */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: '#4F46E5' }]}
+            onPress={() => router.push('/scan')}>
+            <Text style={styles.actionIcon}>📸</Text>
+            <Text style={styles.actionTitle}>Scan Answers</Text>
+            <Text style={styles.actionSub}>Instant OMR Scoring</Text>
+          </TouchableOpacity>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: '#06B6D4' }]}
+            onPress={() => router.push('/exams')}>
+            <Text style={styles.actionIcon}>📝</Text>
+            <Text style={styles.actionTitle}>Create Exam</Text>
+            <Text style={styles.actionSub}>Set Answer Key</Text>
+          </TouchableOpacity>
+        </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        {/* Overview Stats Cards */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>{exams.length}</Text>
+            <Text style={styles.statLbl}>Active Exams</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>{scannedResults.length}</Text>
+            <Text style={styles.statLbl}>Sheets Graded</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>0.4s</Text>
+            <Text style={styles.statLbl}>Avg Scan Speed</Text>
+          </View>
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        {/* Recent Exams Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Exams</Text>
+          <TouchableOpacity onPress={() => router.push('/exams')}>
+            <Text style={styles.seeAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {exams.map((exam) => (
+          <TouchableOpacity
+            key={exam.id}
+            style={styles.examCard}
+            onPress={() => router.push(`/exams/${exam.id}/analytics`)}>
+            <View style={styles.examCardLeft}>
+              <Text style={styles.examTitle}>{exam.title}</Text>
+              <Text style={styles.examSub}>
+                {exam.class_name} • {exam.total_questions} Questions
+              </Text>
+            </View>
+            <View style={styles.examCardRight}>
+              <View style={styles.scoreBadge}>
+                <Text style={styles.scoreText}>{exam.average_score}%</Text>
+                <Text style={styles.scoreLbl}>Avg Score</Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel={`Scan ${exam.title}`}
+                style={styles.scanExamButton}
+                onPress={() => {
+                  setActiveExam(exam);
+                  router.push('/scan');
+                }}>
+                <Camera size={14} color="#FFFFFF" />
+                <Text style={styles.scanExamText}>Scan</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {/* Roster / Class Summary */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>My Class Sections</Text>
+        </View>
+
+        {classes.map((cls) => (
+          <View key={cls.id} style={styles.classCard}>
+            <View>
+              <Text style={styles.className}>{cls.name}</Text>
+              <Text style={styles.classSub}>
+                {cls.subject} • {cls.student_count} Students
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.manageBtn}
+              onPress={() => {
+                setSelectedClass(cls.id);
+                router.push('/rosters');
+              }}>
+              <Text style={styles.manageBtnText}>Roster</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+  },
+  content: {
+    padding: 20,
+  },
+  actionGrid: {
     flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
   },
-  safeArea: {
+  actionCard: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    borderRadius: 20,
+    padding: 18,
+    elevation: 4,
   },
-  heroSection: {
+  actionIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  actionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  actionSub: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  statVal: {
+    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statLbl: {
+    color: '#94A3B8',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  sectionTitle: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  seeAllText: {
+    color: '#06B6D4',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  examCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  examCardLeft: {
+    flex: 1,
+  },
+  examTitle: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  examSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 4,
+  },
+  examCardRight: {
+    marginLeft: 10,
+    gap: 8,
+  },
+  scanExamButton: {
+    minHeight: 32,
+    borderRadius: 8,
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: 5,
+    paddingHorizontal: 10,
   },
-  title: {
-    textAlign: 'center',
+  scanExamText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  scoreBadge: {
+    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
+  scoreText: {
+    color: '#818CF8',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  scoreLbl: {
+    color: '#94A3B8',
+    fontSize: 9,
+  },
+  classCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  className: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  classSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  manageBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  manageBtnText: {
+    color: '#F8FAFC',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

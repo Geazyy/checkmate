@@ -1,0 +1,12 @@
+{
+  "layoutId": "CM-OMR-V2.0-Q50-C4-EXAM-101",
+  "itemCount": 50,
+  "choices": ["A", "B", "C", "D"],
+  "answers": [
+    "C", "B", "A", "B", "A", "B", "A", "B", "C", "A",
+    "B", "A", "B", "C", "C", "D", "A", "B", "C", "D",
+    "A", "B", "C", "D", "A", "B", "C", "D", "B", "B",
+    "C", "D", "A", "A", "blank", "C", "D", "A", "B", "C",
+    "D", "A", "B", "C", "C", "D", "A", "B", "C", "D"
+  ]
+}
