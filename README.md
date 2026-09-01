@@ -1,56 +1,94 @@
-# Welcome to your Expo app 👋
+# CheckMate
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CheckMate is an Expo and React Native application for creating exams, managing answer keys and rosters, printing OMR answer sheets, scanning completed sheets, grading responses, and reviewing class analytics.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Exam and editable answer-key management
+- Student roster management
+- Printable A4 and Letter answer sheets
+- 25-item and 50-item OMR scanning with A-D choices
+- Camera capture and gallery image selection
+- Perspective normalization and local lighting correction
+- Blank, multiple, uncertain, and detected answer states
+- Editable scan review before grading
+- PDF, print, share, and spreadsheet export tools
+- Item analysis, score distribution, and exam analytics
+- Local SQLite storage with optional Supabase integration
 
-   ```bash
-   npm install
-   ```
+## Technology
 
-2. Start the app
+- Expo SDK 57
+- React Native 0.86
+- Expo Router
+- TypeScript
+- Zustand
+- Expo Camera, Image Picker, Image Manipulator, Print, Sharing, and SQLite
 
-   ```bash
-   npx expo start
-   ```
+## Requirements
 
-In the output, you'll find options to open the app in a
+- Node.js and npm
+- Expo Go on a compatible Android or iOS device, or a web browser
+- Phone and computer on the same network for LAN testing
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+To test from a phone when LAN discovery is unavailable:
 
-### Other setup steps
+```bash
+npx expo start --tunnel
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Open Expo Go and scan the QR code shown by Expo.
 
-## Learn more
+For the web build:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run web
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Optional Supabase Configuration
 
-## Join the community
+Create a local environment file and provide public Expo variables:
 
-Join our community of developers creating universal apps.
+```text
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Without these values, the app uses local demonstration data and SQLite behavior.
+
+## OMR Workflow
+
+1. Create or select an exam and configure its answer key.
+2. Generate and print a matching blank answer sheet.
+3. Fill bubbles clearly using a dark pencil or pen.
+4. Keep the entire sheet visible when taking a photo.
+5. Review blank or flagged rows before selecting **Grade Answers**.
+
+The scanner and answer-sheet generator share the versioned layout definition in `src/services/omr/sheetLayout.ts`. Detection is based only on sheet geometry and mark density; the answer key is applied afterward for grading.
+
+## Verification
+
+```bash
+npx tsc --noEmit
+```
+
+Real 50-item OMR regression images and independently transcribed expected answers are stored in `fixtures/omr`.
+
+## Project Structure
+
+```text
+src/app/                 Expo Router screens
+src/components/          Shared UI and scanner components
+src/services/omr/        Sheet geometry and OMR processing
+src/services/export/     PDF and spreadsheet generation
+src/services/database/   Local database support
+src/store/               Application state
+fixtures/omr/            Scanner regression fixtures
+```
