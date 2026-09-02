@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Download, Eye, FileDown, KeyRound, Printer, Save, Share2, X } from 'lucide-react-native';
 
 import { AppHeader } from '../../components/common/Header';
@@ -158,7 +158,8 @@ function SheetPreview({ config, large = false }: { config: AnswerSheetConfig; la
 
 export default function AnswerSheetGeneratorScreen() {
   const router = useRouter();
-  const { activeExam, activeAnswerKeys, setActiveAnswerKeys } = useExamStore();
+  const { examId } = useLocalSearchParams<{ examId?: string }>();
+  const { exams, activeExam, activeAnswerKeys, setActiveAnswerKeys, setActiveExam } = useExamStore();
   const initialCount = activeExam?.total_questions ?? DEFAULT_ANSWER_SHEET_CONFIG.itemCount;
   const [config, setConfig] = useState<AnswerSheetConfig>({
     ...DEFAULT_ANSWER_SHEET_CONFIG,
@@ -177,6 +178,21 @@ export default function AnswerSheetGeneratorScreen() {
   const [answerKeyOpen, setAnswerKeyOpen] = useState(false);
   const [draftAnswers, setDraftAnswers] = useState<string[]>([]);
   const [keyPdfBusy, setKeyPdfBusy] = useState(false);
+
+  useEffect(() => {
+    const routeExam = exams.find((exam) => exam.id === examId);
+    if (!routeExam || routeExam.id === activeExam?.id) return;
+    setActiveExam(routeExam);
+    setConfig((current) => ({
+      ...current,
+      itemCount: routeExam.total_questions,
+      choiceCount: routeExam.options_per_question,
+      testTitle: routeExam.title,
+      subject: routeExam.class_name ?? routeExam.description ?? '',
+      testCode: routeExam.id,
+    }));
+    setCustomCount(String(routeExam.total_questions));
+  }, [activeExam?.id, examId, exams, setActiveExam]);
 
   const isPreset = ITEM_PRESETS.includes(config.itemCount as (typeof ITEM_PRESETS)[number]);
   const scannerReady = scannerSupportsItemCount(config.itemCount);
@@ -237,6 +253,10 @@ export default function AnswerSheetGeneratorScreen() {
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
+      return;
+    }
+    if (activeExam) {
+      router.replace(`/exams/${activeExam.id}` as Href);
       return;
     }
     router.replace('/exams');

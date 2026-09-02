@@ -1,318 +1,156 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ArrowRight, CheckCircle2, FileText, Plus, ScanLine, X } from 'lucide-react-native';
 import { Href, useRouter } from 'expo-router';
-import { AppHeader } from '../../components/common/Header';
+import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
-import { OPTION_LETTERS } from '../../services/omr/scannerEngine';
-import { generateAnswerKeyMatrixPDF } from '../../services/export/pdfGenerator';
 import { QuestionCount } from '../../types';
 
 export default function ExamsManagerScreen() {
   const router = useRouter();
-  const { exams, activeExam, activeAnswerKeys, setActiveExam, addExam, updateAnswerKeyOption } =
-    useExamStore();
-
+  const { width } = useWindowDimensions();
+  const { exams, answerKeysByExamId, setActiveExam, addExam } = useExamStore();
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newSubject, setNewSubject] = useState('');
-  const [questionCount, setQuestionCount] = useState<QuestionCount>(50);
-  const [isExporting, setIsExporting] = useState(false);
+  const [questionCount, setQuestionCount] = useState<QuestionCount>(25);
+  const [formError, setFormError] = useState('');
+  const wide = width >= 760;
 
+  const closeForm = () => { setIsCreating(false); setFormError(''); };
   const handleCreateExam = () => {
-    if (!newTitle.trim()) return;
-
-    const newExamId = `exam-${Date.now()}`;
-    const createdExam = {
-      id: newExamId,
-      teacher_id: 'demo-teacher-id',
-      title: newTitle,
-      description: newSubject,
-      total_questions: questionCount,
-      options_per_question: 4 as const,
-      passing_score: 60,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      scanned_count: 0,
-      average_score: 0,
-      class_name: newSubject || 'General',
+    if (!newTitle.trim()) { setFormError('Enter an exam title to continue.'); return; }
+    const id = `exam-${Date.now()}`;
+    const exam = {
+      id, teacher_id: 'demo-teacher-id', title: newTitle.trim(), description: newSubject.trim(),
+      total_questions: questionCount, options_per_question: 4 as const, passing_score: 60,
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      scanned_count: 0, average_score: 0, class_name: newSubject.trim() || 'General',
     };
-
-    const newKeys = Array.from({ length: questionCount }, (_, i) => ({
-      exam_id: newExamId,
-      question_number: i + 1,
-      correct_options: ['A'],
-      points: 1.0,
+    const keys = Array.from({ length: questionCount }, (_, index) => ({
+      exam_id: id, question_number: index + 1, correct_options: ['A'], points: 1,
     }));
-
-    addExam(createdExam, newKeys);
-    setIsCreating(false);
-    setNewTitle('');
-    setNewSubject('');
-  };
-
-  const handleExportKeyPdf = async () => {
-    if (!activeExam) return;
-    setIsExporting(true);
-    await generateAnswerKeyMatrixPDF(activeExam, activeAnswerKeys);
-    setIsExporting(false);
-  };
-
-  const handleOpenSheetGenerator = () => {
-    if (!activeExam) return;
-    router.push('/answer-sheets' as Href);
+    addExam(exam, keys);
+    setNewTitle(''); setNewSubject(''); closeForm();
+    router.push(`/exams/${id}` as Href);
   };
 
   return (
-    <View style={styles.screen}>
-      <AppHeader title="Exam & Key Manager" />
-
+    <AppShell title="Exams">
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Create Exam Toggle */}
-        <View style={styles.headerRow}>
-          <Text style={styles.sectionTitle}>My Exam Catalog</Text>
-          <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(!isCreating)}>
-            <Text style={styles.createBtnText}>{isCreating ? '✕ Cancel' : '＋ New Exam'}</Text>
+        <View style={styles.pageHeading}>
+          <View style={styles.headingCopy}>
+            <Text style={styles.eyebrow}>ASSESSMENTS</Text>
+            <Text style={styles.pageTitle}>Exam catalog</Text>
+            <Text style={styles.pageSub}>Set up keys, print sheets, and start grading from one place.</Text>
+          </View>
+          <TouchableOpacity style={styles.createButton} onPress={() => isCreating ? closeForm() : setIsCreating(true)}>
+            {isCreating ? <X size={18} color="#FFFFFF" /> : <Plus size={18} color="#FFFFFF" />}
+            <Text style={styles.createButtonText}>{isCreating ? 'Close' : 'New exam'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Create Exam Form Modal Card */}
         {isCreating && (
-          <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Configure New Exam</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Exam Title (e.g. Midterm Physics)"
-              placeholderTextColor="#64748B"
-              value={newTitle}
-              onChangeText={setNewTitle}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Subject / Section"
-              placeholderTextColor="#64748B"
-              value={newSubject}
-              onChangeText={setNewSubject}
-            />
-
-            <Text style={styles.label}>Question Count:</Text>
-            <View style={styles.countRow}>
+          <View style={styles.formPanel}>
+            <Text style={styles.formTitle}>Create an exam</Text>
+            <Text style={styles.formSub}>You can edit the answer key after creating it.</Text>
+            <View style={[styles.formFields, wide && styles.formFieldsWide]}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Exam title</Text>
+                <TextInput autoFocus style={[styles.input, formError && !newTitle.trim() ? styles.inputError : undefined]}
+                  placeholder="Example: Chemistry Quiz 3" placeholderTextColor="#64748B" value={newTitle}
+                  onChangeText={(value) => { setNewTitle(value); setFormError(''); }} />
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Subject or class</Text>
+                <TextInput style={styles.input} placeholder="Example: Chem 202 - Sec B" placeholderTextColor="#64748B"
+                  value={newSubject} onChangeText={setNewSubject} />
+              </View>
+            </View>
+            <Text style={styles.label}>Number of questions</Text>
+            <View style={styles.segmentedControl}>
               {([25, 50, 100] as QuestionCount[]).map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  style={[styles.countPill, questionCount === count && styles.countPillActive]}
+                <TouchableOpacity key={count} style={[styles.segment, questionCount === count && styles.segmentActive]}
                   onPress={() => setQuestionCount(count)}>
-                  <Text
-                    style={[
-                      styles.countPillText,
-                      questionCount === count && { color: '#FFFFFF' },
-                    ]}>
-                    {count} Questions
-                  </Text>
+                  <Text style={[styles.segmentText, questionCount === count && styles.segmentTextActive]}>{count}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-
-            <TouchableOpacity style={styles.submitBtn} onPress={handleCreateExam}>
-              <Text style={styles.submitText}>Save & Build Answer Key</Text>
-            </TouchableOpacity>
+            {!!formError && <Text style={styles.errorText}>{formError}</Text>}
+            <View style={styles.formActions}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={closeForm}><Text style={styles.secondaryButtonText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleCreateExam}>
+                <Text style={styles.primaryButtonText}>Create exam</Text><ArrowRight size={17} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* Exam List */}
-        {exams.map((exam) => {
-          const isSelected = activeExam?.id === exam.id;
-          return (
-            <View key={exam.id} style={[styles.examCard, isSelected && styles.examCardActive]}>
-              <TouchableOpacity style={styles.examMainInfo} onPress={() => setActiveExam(exam)}>
-                <Text style={styles.examTitle}>{exam.title}</Text>
-                <Text style={styles.examSub}>
-                  {exam.class_name} • {exam.total_questions} Questions
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.examActions}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => router.push(`/exams/${exam.id}/analytics`)}>
-                  <Text style={styles.actionBtnText}>Analytics</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#4F46E5' }]}
-                  onPress={() => {
-                    setActiveExam(exam);
-                    router.push('/scan');
-                  }}>
-                  <Text style={styles.actionBtnText}>Scan</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-
-        {/* Active Answer Key Setup Grid */}
-        {activeExam && (
-          <View style={styles.keySection}>
-            <View style={styles.keySectionHeader}>
-              <Text style={styles.keyTitle}>
-                Answer Key Matrix for: <Text style={{ color: '#06B6D4' }}>{activeExam.title}</Text>
-              </Text>
-              <View style={styles.exportGroup}>
-                <TouchableOpacity
-                  style={[styles.exportPdfBtn, isExporting && { opacity: 0.6 }]}
-                  disabled={isExporting}
-                  onPress={handleExportKeyPdf}>
-                  <Text style={styles.exportPdfText}>📄 Download Key PDF</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.exportSheetBtn}
-                  onPress={handleOpenSheetGenerator}>
-                  <Text style={styles.exportSheetText}>Blank Bubble Sheet</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.keyGrid}>
-              {activeAnswerKeys.slice(0, activeExam.total_questions).map((key) => (
-                <View key={key.question_number} style={styles.keyRow}>
-                  <Text style={styles.keyNum}>Q{key.question_number}</Text>
-                  <View style={styles.optionsGroup}>
-                    {OPTION_LETTERS.slice(0, 4).map((opt) => {
-                      const isPicked = key.correct_options.includes(opt);
-                      return (
-                        <TouchableOpacity
-                          key={opt}
-                          style={[styles.keyOptionBtn, isPicked && styles.keyOptionActive]}
-                          onPress={() => updateAnswerKeyOption(key.question_number, [opt])}>
-                          <Text
-                            style={[
-                              styles.keyOptionText,
-                              isPicked && { color: '#FFFFFF', fontWeight: '700' },
-                            ]}>
-                            {opt}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+        <View style={styles.listHeader}><Text style={styles.sectionTitle}>Your exams</Text><Text style={styles.countText}>{exams.length} total</Text></View>
+        <View style={[styles.examGrid, wide && styles.examGridWide]}>
+          {exams.map((exam) => {
+            const configured = (answerKeysByExamId[exam.id] ?? []).filter((key) => key.correct_options.length > 0).length;
+            const keyReady = configured === exam.total_questions;
+            return (
+              <View key={exam.id} style={[styles.examCard, wide && styles.examCardWide]}>
+                <View style={styles.examTopRow}>
+                  <View style={styles.documentIcon}><FileText size={21} color="#67E8F9" /></View>
+                  <View style={[styles.statusBadge, keyReady && styles.statusBadgeReady]}>
+                    <CheckCircle2 size={13} color={keyReady ? '#34D399' : '#FBBF24'} />
+                    <Text style={[styles.statusText, keyReady && styles.statusTextReady]}>{keyReady ? 'Key ready' : `${configured}/${exam.total_questions} keyed`}</Text>
                   </View>
                 </View>
-              ))}
-            </View>
-          </View>
-        )}
+                <Text style={styles.examTitle} numberOfLines={2}>{exam.title}</Text>
+                <Text style={styles.examSub} numberOfLines={1}>{exam.class_name || exam.description || 'General'}</Text>
+                <View style={styles.examMeta}>
+                  <Text style={styles.metaText}>{exam.total_questions} questions</Text><View style={styles.metaDot} /><Text style={styles.metaText}>{exam.scanned_count ?? 0} scans</Text>
+                </View>
+                <View style={styles.cardActions}>
+                  <TouchableOpacity accessibilityLabel={`Open ${exam.title}`} style={styles.openButton}
+                    onPress={() => { setActiveExam(exam); router.push(`/exams/${exam.id}` as Href); }}>
+                    <Text style={styles.openButtonText}>Open exam</Text><ArrowRight size={16} color="#E2E8F0" />
+                  </TouchableOpacity>
+                  <TouchableOpacity accessibilityLabel={`Scan ${exam.title}`} style={styles.scanButton}
+                    onPress={() => { setActiveExam(exam); router.push({ pathname: '/scan', params: { examId: exam.id } }); }}>
+                    <ScanLine size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
       </ScrollView>
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0F172A' },
-  content: { padding: 16 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
-  createBtn: { backgroundColor: '#4F46E5', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
-  createBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
-  formCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  formTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginBottom: 12 },
-  input: {
-    backgroundColor: '#0F172A',
-    borderRadius: 10,
-    padding: 12,
-    color: '#F8FAFC',
-    fontSize: 13,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  label: { color: '#94A3B8', fontSize: 11, marginBottom: 6 },
-  countRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  countPill: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  countPillActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  countPillText: { color: '#94A3B8', fontSize: 11, fontWeight: '600' },
-  submitBtn: { backgroundColor: '#10B981', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  examCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  examCardActive: { borderColor: '#4F46E5', borderWidth: 1.5 },
-  examMainInfo: { flex: 1 },
-  examTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
-  examSub: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
-  examActions: { flexDirection: 'row', gap: 6 },
-  actionBtn: { backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  actionBtnText: { color: '#F8FAFC', fontSize: 10, fontWeight: '600' },
-  keySection: { marginTop: 20 },
-  keySectionHeader: {
-    marginBottom: 12,
-  },
-  keyTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  exportGroup: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  exportPdfBtn: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  exportPdfText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  exportSheetBtn: {
-    backgroundColor: '#06B6D4',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  exportSheetText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  keyGrid: { backgroundColor: '#1E293B', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#334155' },
-  keyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#0F172A',
-  },
-  keyNum: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', width: 36 },
-  optionsGroup: { flexDirection: 'row', gap: 6 },
-  keyOptionBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#475569',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-  },
-  keyOptionActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  keyOptionText: { color: '#94A3B8', fontSize: 11 },
+  content: { width: '100%', maxWidth: 1080, alignSelf: 'center', padding: 20, paddingBottom: 30 },
+  pageHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
+  headingCopy: { flex: 1 }, eyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
+  pageTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '800', marginTop: 4 },
+  pageSub: { color: '#94A3B8', fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 500 },
+  createButton: { minHeight: 42, paddingHorizontal: 15, borderRadius: 8, backgroundColor: '#4F46E5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  createButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  formPanel: { backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 18, marginBottom: 26 },
+  formTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800' }, formSub: { color: '#94A3B8', fontSize: 11, marginTop: 3, marginBottom: 16 },
+  formFields: { gap: 12 }, formFieldsWide: { flexDirection: 'row' }, fieldGroup: { flex: 1 },
+  label: { color: '#CBD5E1', fontSize: 11, fontWeight: '700', marginBottom: 7 },
+  input: { minHeight: 44, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#3B4A61', borderRadius: 8, color: '#F8FAFC', fontSize: 13, paddingHorizontal: 12, marginBottom: 14 },
+  inputError: { borderColor: '#F87171' }, segmentedControl: { width: '100%', maxWidth: 330, flexDirection: 'row', borderRadius: 8, padding: 3, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' },
+  segment: { flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 6 }, segmentActive: { backgroundColor: '#334155' },
+  segmentText: { color: '#94A3B8', fontSize: 12, fontWeight: '700' }, segmentTextActive: { color: '#FFFFFF' }, errorText: { color: '#FCA5A5', fontSize: 11, marginTop: 8 },
+  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9, marginTop: 18 },
+  secondaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#475569', alignItems: 'center', justifyContent: 'center' }, secondaryButtonText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  primaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#059669', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 }, primaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }, sectionTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800' }, countText: { color: '#64748B', fontSize: 11, fontWeight: '600' },
+  examGrid: { gap: 11 }, examGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
+  examCard: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 15 }, examCardWide: { width: '48.8%' },
+  examTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, documentIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 8, paddingVertical: 5 }, statusBadgeReady: { backgroundColor: 'rgba(16,185,129,0.12)' },
+  statusText: { color: '#FBBF24', fontSize: 9, fontWeight: '800' }, statusTextReady: { color: '#34D399' },
+  examTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', lineHeight: 21 }, examSub: { color: '#94A3B8', fontSize: 11, marginTop: 5 },
+  examMeta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }, metaText: { color: '#64748B', fontSize: 10, fontWeight: '600' }, metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#475569' },
+  cardActions: { flexDirection: 'row', gap: 8, marginTop: 16 }, openButton: { flex: 1, minHeight: 40, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#29364A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  openButtonText: { color: '#E2E8F0', fontSize: 12, fontWeight: '700' }, scanButton: { width: 42, height: 40, borderRadius: 8, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' },
 });

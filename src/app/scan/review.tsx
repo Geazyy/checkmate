@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AlertTriangle, Check, RotateCcw, X } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
@@ -9,6 +9,7 @@ import { OPTION_LETTERS } from '../../services/omr/scannerEngine';
 
 export default function ScanReviewScreen() {
   const router = useRouter();
+  const { examId } = useLocalSearchParams<{ examId?: string }>();
   const insets = useSafeAreaInsets();
   const {
     lastScannedResult,
@@ -106,7 +107,11 @@ export default function ScanReviewScreen() {
 
   const handleConfirm = () => {
     confirmLastScannedResult();
-    router.replace('/');
+    if (examId) {
+      router.replace(`/exams/${examId}` as Href);
+      return;
+    }
+    router.replace('/exams');
   };
 
   return (

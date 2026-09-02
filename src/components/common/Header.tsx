@@ -1,10 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useScanStore } from '../../store/useScanStore';
 import { syncPendingScansToCloud } from '../../services/database/localDb';
 
-export const AppHeader: React.FC<{ title?: string }> = ({ title = 'CheckMate' }) => {
+export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ title = 'CheckMate', compact = false }) => {
+  const insets = useSafeAreaInsets();
   const { user, isOnline } = useAuthStore();
   const { pendingSyncCount, setPendingSyncCount } = useScanStore();
 
@@ -15,7 +17,7 @@ export const AppHeader: React.FC<{ title?: string }> = ({ title = 'CheckMate' })
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: compact ? 18 : Math.max(16, insets.top + 10) }]}>
       <View>
         <Text style={styles.brandTitle}>{title}</Text>
         {user && <Text style={styles.welcomeText}>Hello, {user.full_name}</Text>}
@@ -51,7 +53,6 @@ export const AppHeader: React.FC<{ title?: string }> = ({ title = 'CheckMate' })
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 50,
     paddingBottom: 15,
     backgroundColor: '#0F172A',
     flexDirection: 'row',
@@ -61,11 +62,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1E293B',
   },
   brandTitle: {
-    fontFamily: 'Outfit-Bold',
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#F8FAFC',
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   welcomeText: {
     fontSize: 12,

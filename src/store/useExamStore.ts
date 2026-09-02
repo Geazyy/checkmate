@@ -85,8 +85,8 @@ const INITIAL_ANSWER_KEYS = Object.fromEntries(
 export const useExamStore = create<ExamState>((set) => ({
   exams: INITIAL_EXAMS,
   classes: MOCK_CLASSES,
-  activeExam: INITIAL_EXAMS[0],
-  activeAnswerKeys: INITIAL_ANSWER_KEYS[INITIAL_EXAMS[0].id],
+  activeExam: null,
+  activeAnswerKeys: [],
   answerKeysByExamId: INITIAL_ANSWER_KEYS,
   selectedClassId: MOCK_CLASSES[0]?.id ?? null,
   setExams: (exams) => set({ exams }),

@@ -19,6 +19,8 @@ export default function RootLayout() {
         <Stack.Screen name="scan/index" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="scan/review" options={{ presentation: 'modal' }} />
         <Stack.Screen name="exams/index" />
+        <Stack.Screen name="exams/[id]/index" />
+        <Stack.Screen name="exams/[id]/answer-key" />
         <Stack.Screen name="exams/[id]/analytics" />
         <Stack.Screen name="answer-sheets/index" />
         <Stack.Screen name="rosters/index" />

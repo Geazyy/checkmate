@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { AppHeader } from '../../components/common/Header';
+import { Plus, Search, UserRound, X } from 'lucide-react-native';
+import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
 import { Student } from '../../types';
 
@@ -72,14 +73,17 @@ export default function RosterScreen() {
   );
 
   return (
-    <View style={styles.screen}>
-      <AppHeader title="Roster & Student Manager" />
-
+    <AppShell title="Classes">
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.sectionTitle}>Student Directory</Text>
+          <View style={styles.headingCopy}>
+            <Text style={styles.eyebrow}>CLASS MANAGEMENT</Text>
+            <Text style={styles.sectionTitle}>Student directory</Text>
+            <Text style={styles.sectionSub}>Choose a class, then manage its roster.</Text>
+          </View>
           <TouchableOpacity style={styles.addBtn} onPress={() => setIsAdding(!isAdding)}>
-            <Text style={styles.addBtnText}>{isAdding ? '✕ Close' : '＋ Add Student'}</Text>
+            {isAdding ? <X size={17} color="#FFFFFF" /> : <Plus size={17} color="#FFFFFF" />}
+            <Text style={styles.addBtnText}>{isAdding ? 'Close' : 'Add student'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -147,13 +151,21 @@ export default function RosterScreen() {
         )}
 
         {/* Search Bar */}
-        <TextInput
-          style={styles.searchBar}
-          placeholder="🔍 Search student name or ID..."
-          placeholderTextColor="#64748B"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+        <View style={styles.searchBar}>
+          <Search size={18} color="#64748B" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search student name or ID"
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <View style={styles.rosterHeader}>
+          <Text style={styles.rosterTitle}>Students</Text>
+          <Text style={styles.rosterCount}>{filteredStudents.length} shown</Text>
+        </View>
 
         {/* Student Roster Table List */}
         {filteredStudents.map((s) => (
@@ -174,31 +186,40 @@ export default function RosterScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.qrBtn}>
-              <Text style={styles.qrText}>QR</Text>
-            </TouchableOpacity>
+            <UserRound size={18} color="#64748B" />
           </View>
         ))}
+
+        {filteredStudents.length === 0 && (
+          <View style={styles.emptyState}>
+            <Search size={24} color="#64748B" />
+            <Text style={styles.emptyTitle}>No students found</Text>
+            <Text style={styles.emptyText}>Try another name or student ID.</Text>
+          </View>
+        )}
       </ScrollView>
-    </View>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0F172A' },
-  content: { padding: 16 },
+  content: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingBottom: 30 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  sectionTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
-  addBtn: { backgroundColor: '#4F46E5', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
+  headingCopy: { flex: 1 },
+  eyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
+  sectionTitle: { color: '#F8FAFC', fontSize: 23, fontWeight: '800', marginTop: 4 },
+  sectionSub: { color: '#94A3B8', fontSize: 11, marginTop: 5 },
+  addBtn: { minHeight: 42, backgroundColor: '#4F46E5', paddingHorizontal: 14, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
   addBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
   classSelectorCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
@@ -208,7 +229,7 @@ const styles = StyleSheet.create({
   classSelectorRow: { gap: 8, paddingBottom: 10 },
   classChip: {
     backgroundColor: '#0F172A',
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
@@ -240,17 +261,23 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 12,
-    color: '#F8FAFC',
-    fontSize: 13,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    minHeight: 46,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#334155',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
+  searchInput: { flex: 1, color: '#F8FAFC', fontSize: 13, paddingVertical: 10 },
+  rosterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
+  rosterTitle: { color: '#E2E8F0', fontSize: 13, fontWeight: '800' },
+  rosterCount: { color: '#64748B', fontSize: 10, fontWeight: '600' },
   formCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
@@ -271,7 +298,7 @@ const styles = StyleSheet.create({
   submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   studentCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 12,
     marginBottom: 10,
     flexDirection: 'row',
@@ -292,6 +319,7 @@ const styles = StyleSheet.create({
   studentDetails: { flex: 1 },
   studentName: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
   studentSub: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
-  qrBtn: { backgroundColor: 'rgba(6, 182, 212, 0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  qrText: { color: '#06B6D4', fontSize: 11, fontWeight: '700' },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  emptyTitle: { color: '#CBD5E1', fontSize: 13, fontWeight: '800', marginTop: 10 },
+  emptyText: { color: '#64748B', fontSize: 10, marginTop: 4 },
 });

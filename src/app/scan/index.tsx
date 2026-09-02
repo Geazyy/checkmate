@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useIsFocused, useRouter } from 'expo-router';
+import { Href, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowRight, CheckCircle2, FileText } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraOverlay } from '../../components/scanner/CameraOverlay';
@@ -8,10 +9,12 @@ import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
 import { scoreScanResults } from '../../services/omr/scannerEngine';
 import { analyzeAnswerSheetImageDetailed } from '../../services/omr/imageScanner';
+import { AppShell } from '../../components/common/AppShell';
 
 export default function CameraScanScreen() {
   const router = useRouter();
-  const { exams, activeExam, activeAnswerKeys } = useExamStore();
+  const { examId } = useLocalSearchParams<{ examId?: string }>();
+  const { exams, activeExam, answerKeysByExamId, setActiveExam } = useExamStore();
   const { isAligned, torchEnabled, setIsAligned, setTorchEnabled, setLastScannedResult } =
     useScanStore();
 
@@ -26,7 +29,12 @@ export default function CameraScanScreen() {
   const videoRef = useRef<any>(null);
   const cameraRef = useRef<CameraView>(null);
   const isFocused = useIsFocused();
-  const currentExam = activeExam || exams[0];
+  const currentExam = exams.find((exam) => exam.id === examId);
+  const currentAnswerKeys = currentExam ? answerKeysByExamId[currentExam.id] ?? [] : [];
+
+  useEffect(() => {
+    if (currentExam && activeExam?.id !== currentExam.id) setActiveExam(currentExam);
+  }, [activeExam?.id, currentExam, setActiveExam]);
 
   const startWebCamera = async () => {
     setCamError('');
@@ -67,10 +75,10 @@ export default function CameraScanScreen() {
   };
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' && currentExam) {
       startWebCamera();
     }
-  }, []);
+  }, [currentExam?.id]);
 
   useEffect(() => {
     if (isFocused) {
@@ -114,7 +122,7 @@ export default function CameraScanScreen() {
         currentExam.options_per_question
       );
       const bubbleResults = analysis.results;
-      const score = scoreScanResults(bubbleResults, activeAnswerKeys);
+      const score = scoreScanResults(bubbleResults, currentAnswerKeys);
 
       const newScanResult = {
         id: `scan-${Date.now()}`,
@@ -139,7 +147,7 @@ export default function CameraScanScreen() {
       };
 
       setLastScannedResult(newScanResult);
-      router.push('/scan/review');
+      router.push({ pathname: '/scan/review', params: { examId: currentExam.id } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to capture the sheet.';
       setScanMessage(message);
@@ -191,6 +199,52 @@ export default function CameraScanScreen() {
       setScanMessage('Check that rows 1-25 and all A-D circles are visible.');
     }
   };
+
+  if (!currentExam) {
+    return (
+      <AppShell title="Scan">
+        <View style={styles.examPickerScreen}>
+          <View style={styles.examPickerContent}>
+            <Text style={styles.pickerEyebrow}>NEW SCAN</Text>
+            <Text style={styles.pickerTitle}>Choose an exam</Text>
+            <Text style={styles.pickerSubtitle}>
+              The selected answer key and sheet layout will be used to grade the photo.
+            </Text>
+
+            <View style={styles.pickerList}>
+              {exams.map((exam) => {
+                const keyCount = (answerKeysByExamId[exam.id] ?? []).filter((key) => key.correct_options.length > 0).length;
+                const keyReady = keyCount === exam.total_questions;
+                return (
+                  <TouchableOpacity
+                    accessibilityLabel={`Choose ${exam.title}`}
+                    key={exam.id}
+                    style={styles.pickerCard}
+                    onPress={() => {
+                      setActiveExam(exam);
+                      router.replace({ pathname: '/scan', params: { examId: exam.id } });
+                    }}>
+                    <View style={styles.pickerIcon}><FileText size={21} color="#67E8F9" /></View>
+                    <View style={styles.pickerCopy}>
+                      <Text style={styles.pickerExamTitle}>{exam.title}</Text>
+                      <Text style={styles.pickerExamMeta}>{exam.class_name || 'General'} · {exam.total_questions} questions</Text>
+                      <View style={styles.keyStatus}>
+                        <CheckCircle2 size={13} color={keyReady ? '#34D399' : '#FBBF24'} />
+                        <Text style={[styles.keyStatusText, !keyReady && styles.keyStatusWarning]}>
+                          {keyReady ? 'Answer key ready' : `${keyCount}/${exam.total_questions} answers configured`}
+                        </Text>
+                      </View>
+                    </View>
+                    <ArrowRight size={19} color="#94A3B8" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </AppShell>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -285,7 +339,11 @@ export default function CameraScanScreen() {
 
       {/* Top Header Controls */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => currentExam
+            ? router.replace(`/exams/${currentExam.id}` as Href)
+            : router.replace('/exams')}>
           <Text style={styles.backBtnText}>✕ Close</Text>
         </TouchableOpacity>
         <Text style={styles.examTitle}>{currentExam?.title || 'OMR Scanner'}</Text>
@@ -350,6 +408,20 @@ const webBtnStyle: React.CSSProperties = {
 };
 
 const styles = StyleSheet.create({
+  examPickerScreen: { flex: 1, backgroundColor: '#0F172A' },
+  examPickerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20 },
+  pickerEyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
+  pickerTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '800', marginTop: 4 },
+  pickerSubtitle: { color: '#94A3B8', fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 22, maxWidth: 520 },
+  pickerList: { gap: 10 },
+  pickerCard: { minHeight: 88, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pickerIcon: { width: 42, height: 42, borderRadius: 8, backgroundColor: 'rgba(8,145,178,0.16)', alignItems: 'center', justifyContent: 'center' },
+  pickerCopy: { flex: 1, minWidth: 0 },
+  pickerExamTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
+  pickerExamMeta: { color: '#94A3B8', fontSize: 10, marginTop: 4 },
+  keyStatus: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },
+  keyStatusText: { color: '#34D399', fontSize: 9, fontWeight: '700' },
+  keyStatusWarning: { color: '#FBBF24' },
   container: {
     flex: 1,
     backgroundColor: '#000000',
