@@ -10,6 +10,7 @@ interface ExamState {
   selectedClassId: string | null;
   setExams: (exams: Exam[]) => void;
   setClasses: (classes: ClassSection[]) => void;
+  addClass: (classSection: ClassSection) => void;
   setActiveExam: (exam: Exam | null) => void;
   setActiveAnswerKeys: (keys: AnswerKeyItem[]) => void;
   setSelectedClass: (id: string | null) => void;
@@ -91,6 +92,11 @@ export const useExamStore = create<ExamState>((set) => ({
   selectedClassId: MOCK_CLASSES[0]?.id ?? null,
   setExams: (exams) => set({ exams }),
   setClasses: (classes) => set({ classes }),
+  addClass: (classSection) =>
+    set((state) => ({
+      classes: [classSection, ...state.classes],
+      selectedClassId: classSection.id,
+    })),
   setActiveExam: (exam) =>
     set((state) => ({
       activeExam: exam,

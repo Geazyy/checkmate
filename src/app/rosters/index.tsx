@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Plus, Search, UserRound, X } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Plus, Search, UserRound, X } from 'lucide-react-native';
 import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
-import { Student } from '../../types';
+import { ClassSection, Student } from '../../types';
 
 const INITIAL_STUDENTS: Student[] = [
   {
@@ -36,18 +36,69 @@ const INITIAL_STUDENTS: Student[] = [
 ];
 
 export default function RosterScreen() {
-  const { classes, selectedClassId, setSelectedClass } = useExamStore();
-  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+  const { classes, selectedClassId, setSelectedClass, addClass } = useExamStore();
+  const [studentsByClassId, setStudentsByClassId] = useState<Record<string, Student[]>>({
+    'class-1': INITIAL_STUDENTS,
+    'class-2': [],
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [studentNum, setStudentNum] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingClass, setIsAddingClass] = useState(false);
+  const [className, setClassName] = useState('');
+  const [classSubject, setClassSubject] = useState('');
+  const [academicYear, setAcademicYear] = useState('2026-2027');
+  const [classError, setClassError] = useState('');
+  const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+  const [classQuery, setClassQuery] = useState('');
 
-  const selectedClass = classes.find((cls) => cls.id === (selectedClassId ?? classes[0]?.id)) ?? classes[0];
+  const selectedClass = selectedClassId
+    ? classes.find((cls) => cls.id === selectedClassId)
+    : undefined;
+  const visibleStudents = selectedClassId
+    ? studentsByClassId[selectedClassId] ?? []
+    : Object.values(studentsByClassId).flat();
+  const filteredClasses = classes.filter((cls) => {
+    const query = classQuery.trim().toLowerCase();
+    return !query || cls.name.toLowerCase().includes(query) || cls.subject.toLowerCase().includes(query);
+  });
+
+  const chooseClass = (classId: string | null) => {
+    setSelectedClass(classId);
+    setIsClassPickerOpen(false);
+    setClassQuery('');
+    setIsAdding(false);
+  };
+
+  const handleAddClass = () => {
+    if (!className.trim() || !classSubject.trim()) {
+      setClassError('Enter both a class name and subject.');
+      return;
+    }
+
+    const newClass: ClassSection = {
+      id: `class-${Date.now()}`,
+      teacher_id: 'demo-teacher-id',
+      name: className.trim(),
+      subject: classSubject.trim(),
+      academic_year: academicYear.trim() || '2026-2027',
+      created_at: new Date().toISOString(),
+      student_count: 0,
+    };
+
+    addClass(newClass);
+    setStudentsByClassId((current) => ({ ...current, [newClass.id]: [] }));
+    setClassName('');
+    setClassSubject('');
+    setAcademicYear('2026-2027');
+    setClassError('');
+    setIsAddingClass(false);
+  };
 
   const handleAddStudent = () => {
-    if (!firstName.trim() || !studentNum.trim()) return;
+    if (!firstName.trim() || !studentNum.trim() || !selectedClassId) return;
 
     const newStudent: Student = {
       id: `s-${Date.now()}`,
@@ -58,14 +109,17 @@ export default function RosterScreen() {
       created_at: new Date().toISOString(),
     };
 
-    setStudents([newStudent, ...students]);
+    setStudentsByClassId((current) => ({
+      ...current,
+      [selectedClassId]: [newStudent, ...(current[selectedClassId] ?? [])],
+    }));
     setFirstName('');
     setLastName('');
     setStudentNum('');
     setIsAdding(false);
   };
 
-  const filteredStudents = students.filter(
+  const filteredStudents = visibleStudents.filter(
     (s) =>
       s.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,47 +135,149 @@ export default function RosterScreen() {
             <Text style={styles.sectionTitle}>Student directory</Text>
             <Text style={styles.sectionSub}>Choose a class, then manage its roster.</Text>
           </View>
-          <TouchableOpacity style={styles.addBtn} onPress={() => setIsAdding(!isAdding)}>
+        </View>
+
+        <View style={styles.pageActions}>
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => {
+              setIsAddingClass((current) => !current);
+              setIsAdding(false);
+              setClassError('');
+            }}>
+            {isAddingClass ? <X size={17} color="#CBD5E1" /> : <Plus size={17} color="#CBD5E1" />}
+            <Text style={styles.secondaryBtnText}>{isAddingClass ? 'Close' : 'Add class'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addBtn, !selectedClassId && styles.disabledBtn]}
+            disabled={!selectedClassId}
+            onPress={() => {
+              setIsAdding((current) => !current);
+              setIsAddingClass(false);
+            }}>
             {isAdding ? <X size={17} color="#FFFFFF" /> : <Plus size={17} color="#FFFFFF" />}
             <Text style={styles.addBtnText}>{isAdding ? 'Close' : 'Add student'}</Text>
           </TouchableOpacity>
         </View>
 
+        {isAddingClass && (
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>Create class</Text>
+            <Text style={styles.formSub}>Add the class details, then build its roster.</Text>
+            <Text style={styles.inputLabel}>Class name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Chemistry 201 - Sec B"
+              placeholderTextColor="#64748B"
+              value={className}
+              onChangeText={(value) => {
+                setClassName(value);
+                setClassError('');
+              }}
+            />
+            <Text style={styles.inputLabel}>Subject</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Chemistry"
+              placeholderTextColor="#64748B"
+              value={classSubject}
+              onChangeText={(value) => {
+                setClassSubject(value);
+                setClassError('');
+              }}
+            />
+            <Text style={styles.inputLabel}>Academic year</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="2026-2027"
+              placeholderTextColor="#64748B"
+              value={academicYear}
+              onChangeText={setAcademicYear}
+            />
+            {!!classError && <Text style={styles.formError}>{classError}</Text>}
+            <TouchableOpacity style={styles.submitBtn} onPress={handleAddClass}>
+              <Text style={styles.submitText}>Create class</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.classSelectorCard}>
           <Text style={styles.classSelectorTitle}>Class section</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.classSelectorRow}>
-            <TouchableOpacity
-              style={[styles.classChip, !selectedClassId && styles.classChipActive]}
-              onPress={() => setSelectedClass(null)}>
-              <Text style={[styles.classChipText, !selectedClassId && styles.classChipTextActive]}>All</Text>
-            </TouchableOpacity>
-            {classes.map((cls) => (
-              <TouchableOpacity
-                key={cls.id}
-                style={[styles.classChip, selectedClassId === cls.id && styles.classChipActive]}
-                onPress={() => setSelectedClass(cls.id)}>
-                <Text style={[styles.classChipText, selectedClassId === cls.id && styles.classChipTextActive]}>
-                  {cls.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity
+            style={[styles.classPickerButton, isClassPickerOpen && styles.classPickerButtonOpen]}
+            onPress={() => setIsClassPickerOpen((current) => !current)}>
+            <View style={styles.classPickerCopy}>
+              <Text style={styles.classPickerValue} numberOfLines={1}>
+                {selectedClass?.name ?? 'All classes'}
+              </Text>
+              <Text style={styles.classPickerMeta} numberOfLines={1}>
+                {selectedClass
+                  ? `${selectedClass.subject} • ${selectedClass.academic_year} • ${visibleStudents.length} students`
+                  : `${classes.length} class${classes.length === 1 ? '' : 'es'} • ${visibleStudents.length} students`}
+              </Text>
+            </View>
+            {isClassPickerOpen
+              ? <ChevronUp size={20} color="#94A3B8" />
+              : <ChevronDown size={20} color="#94A3B8" />}
+          </TouchableOpacity>
 
-          {selectedClass && (
-            <View style={styles.classSummaryRow}>
-              <View>
-                <Text style={styles.classSummaryTitle}>{selectedClass.name}</Text>
-                <Text style={styles.classSummarySub}>{selectedClass.subject} • {selectedClass.student_count ?? students.length} Students</Text>
+          {isClassPickerOpen && (
+            <View style={styles.classPickerPanel}>
+              <View style={styles.classSearchBar}>
+                <Search size={17} color="#64748B" />
+                <TextInput
+                  style={styles.classSearchInput}
+                  placeholder="Search class or subject"
+                  placeholderTextColor="#64748B"
+                  value={classQuery}
+                  onChangeText={setClassQuery}
+                  autoFocus
+                />
               </View>
-              <Text style={styles.classSummaryBadge}>{students.length} roster</Text>
+              <ScrollView
+                style={styles.classOptionsList}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={filteredClasses.length > 5}>
+              <TouchableOpacity
+                style={[styles.classOption, !selectedClassId && styles.classOptionActive]}
+                onPress={() => chooseClass(null)}>
+                <View style={styles.classOptionCopy}>
+                  <Text style={styles.classOptionName}>All classes</Text>
+                  <Text style={styles.classOptionMeta}>{classes.length} class sections</Text>
+                </View>
+                {!selectedClassId && <Check size={18} color="#22D3EE" />}
+              </TouchableOpacity>
+              {filteredClasses.map((cls) => (
+                <TouchableOpacity
+                  key={cls.id}
+                  style={[styles.classOption, selectedClassId === cls.id && styles.classOptionActive]}
+                  onPress={() => chooseClass(cls.id)}>
+                  <View style={styles.classOptionCopy}>
+                    <Text style={styles.classOptionName} numberOfLines={1}>{cls.name}</Text>
+                    <Text style={styles.classOptionMeta} numberOfLines={1}>
+                      {cls.subject} • {(studentsByClassId[cls.id] ?? []).length} students
+                    </Text>
+                  </View>
+                  {selectedClassId === cls.id && <Check size={18} color="#22D3EE" />}
+                </TouchableOpacity>
+              ))}
+              {filteredClasses.length === 0 && (
+                <View style={styles.noClassResults}>
+                  <Text style={styles.noClassResultsText}>No matching classes</Text>
+                </View>
+              )}
+              </ScrollView>
             </View>
           )}
+
         </View>
 
         {/* Add Student Card Form */}
         {isAdding && (
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Add New Student to Roster</Text>
+            <Text style={styles.formSub}>Adding to {selectedClass?.name}.</Text>
             <TextInput
               style={styles.input}
               placeholder="Student ID # (e.g. 2026-045)"
@@ -215,8 +371,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
   sectionTitle: { color: '#F8FAFC', fontSize: 23, fontWeight: '800', marginTop: 4 },
   sectionSub: { color: '#94A3B8', fontSize: 11, marginTop: 5 },
-  addBtn: { minHeight: 42, backgroundColor: '#4F46E5', paddingHorizontal: 14, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  pageActions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  secondaryBtn: { minHeight: 42, flex: 1, borderWidth: 1, borderColor: '#475569', borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
+  secondaryBtnText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  addBtn: { minHeight: 42, flex: 1, justifyContent: 'center', backgroundColor: '#4F46E5', paddingHorizontal: 14, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
   addBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  disabledBtn: { opacity: 0.45 },
   classSelectorCard: {
     backgroundColor: '#1E293B',
     borderRadius: 8,
@@ -226,39 +386,59 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   classSelectorTitle: { color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 10 },
-  classSelectorRow: { gap: 8, paddingBottom: 10 },
-  classChip: {
+  classPickerButton: {
+    minHeight: 58,
     backgroundColor: '#0F172A',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#334155',
-  },
-  classChipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  classChipText: { color: '#94A3B8', fontSize: 11, fontWeight: '600' },
-  classChipTextActive: { color: '#FFFFFF' },
-  classSummaryRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
+  },
+  classPickerButtonOpen: { borderColor: '#6366F1' },
+  classPickerCopy: { flex: 1, minWidth: 0 },
+  classPickerValue: { color: '#F8FAFC', fontSize: 13, fontWeight: '800' },
+  classPickerMeta: { color: '#94A3B8', fontSize: 10, marginTop: 3 },
+  classPickerPanel: {
     marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    padding: 8,
   },
-  classSummaryTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700' },
-  classSummarySub: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
-  classSummaryBadge: {
-    backgroundColor: 'rgba(6, 182, 212, 0.15)',
-    color: '#06B6D4',
-    fontSize: 10,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 10,
-    overflow: 'hidden',
+  classSearchBar: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 6,
   },
+  classSearchInput: { flex: 1, color: '#F8FAFC', fontSize: 12, paddingVertical: 8 },
+  classOptionsList: { maxHeight: 238 },
+  classOption: {
+    minHeight: 52,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  classOptionActive: { backgroundColor: 'rgba(79, 70, 229, 0.18)' },
+  classOptionCopy: { flex: 1, minWidth: 0 },
+  classOptionName: { color: '#E2E8F0', fontSize: 12, fontWeight: '700' },
+  classOptionMeta: { color: '#64748B', fontSize: 10, marginTop: 3 },
+  noClassResults: { paddingVertical: 24, alignItems: 'center' },
+  noClassResultsText: { color: '#64748B', fontSize: 11 },
   searchBar: {
     backgroundColor: '#1E293B',
     borderRadius: 8,
@@ -284,6 +464,8 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   formTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  formSub: { color: '#94A3B8', fontSize: 11, marginTop: -6, marginBottom: 12 },
+  inputLabel: { color: '#CBD5E1', fontSize: 11, fontWeight: '700', marginBottom: 6 },
   input: {
     backgroundColor: '#0F172A',
     borderRadius: 10,
@@ -296,6 +478,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: { backgroundColor: '#10B981', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  formError: { color: '#FCA5A5', fontSize: 11, fontWeight: '700', marginBottom: 10 },
   studentCard: {
     backgroundColor: '#1E293B',
     borderRadius: 8,
