@@ -29,6 +29,7 @@ import {
   SheetFieldKey,
   buildLayoutId,
   clampItemCount,
+  getFourSheetWarning,
   getPagePoints,
   getQuestionColumns,
   scannerSupportsItemCount,
@@ -79,7 +80,7 @@ function OptionGroup({
   );
 }
 
-function MiniSheet({ config }: { config: AnswerSheetConfig }) {
+function MiniSheet({ config, compact = false }: { config: AnswerSheetConfig; compact?: boolean }) {
   const columns = getQuestionColumns(config.itemCount);
   const options = ['A', 'B', 'C', 'D', 'E'].slice(0, config.choiceCount);
   const enabledFields = (Object.keys(config.fields) as SheetFieldKey[]).filter(
@@ -115,11 +116,11 @@ function MiniSheet({ config }: { config: AnswerSheetConfig }) {
         {columns.map((questions, columnIndex) => (
           <View key={columnIndex} style={styles.previewQuestionColumn}>
             {questions.map((question) => (
-              <View key={question} style={styles.previewQuestionRow}>
+              <View key={question} style={[styles.previewQuestionRow, compact && styles.previewQuestionRowCompact]}>
                 <Text style={styles.previewQuestionNumber}>{`${question}.`}</Text>
                 <View style={styles.previewBubbles}>
                   {options.map((option) => (
-                    <View key={option} style={styles.previewBubble}>
+                    <View key={option} style={[styles.previewBubble, compact && styles.previewBubbleCompact]}>
                       <Text style={styles.previewBubbleText}>{option}</Text>
                     </View>
                   ))}
@@ -141,6 +142,38 @@ function SheetPreview({ config, large = false }: { config: AnswerSheetConfig; la
   const points = getPagePoints(config.paperSize, config.orientation);
   const width = config.orientation === 'landscape' ? (large ? 920 : 720) : large ? 660 : 500;
   const height = width * (points.height / points.width);
+  const previewPadding = 10;
+  const previewGap = 8;
+
+  if (config.sheetsPerPage === 4) {
+    const cellWidth = (width - previewPadding * 2 - previewGap) / 2;
+    const cellHeight = (height - previewPadding * 2 - previewGap) / 2;
+    const rotated = config.orientation === 'landscape';
+    const sheetWidth = rotated ? cellHeight : cellWidth;
+    const sheetHeight = rotated ? cellWidth : cellHeight;
+    const positions = [
+      { left: previewPadding, top: previewPadding },
+      { left: previewPadding + cellWidth + previewGap, top: previewPadding },
+      { left: previewPadding, top: previewPadding + cellHeight + previewGap },
+      { left: previewPadding + cellWidth + previewGap, top: previewPadding + cellHeight + previewGap },
+    ];
+
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.previewScroller}>
+        <View style={[styles.paperPreview, { width, height }]}>
+          <View style={[styles.previewCutLineFourVertical, { left: width / 2 }]} />
+          <View style={[styles.previewCutLineFourHorizontal, { top: height / 2 }]} />
+          {positions.map((position, index) => (
+            <View key={index} style={[styles.previewSheetSlot, position, { width: cellWidth, height: cellHeight }]}>
+              <View style={{ width: sheetWidth, height: sheetHeight, transform: [{ rotate: rotated ? '90deg' : '0deg' }] }}>
+                <MiniSheet config={config} compact />
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.previewScroller}>
@@ -196,6 +229,8 @@ export default function AnswerSheetGeneratorScreen() {
 
   const isPreset = ITEM_PRESETS.includes(config.itemCount as (typeof ITEM_PRESETS)[number]);
   const scannerReady = scannerSupportsItemCount(config.itemCount);
+  const fourSheetWarning = getFourSheetWarning(config);
+  const fourSheetBlocked = config.sheetsPerPage === 4 && config.itemCount > 25;
   const metadataFields = useMemo(
     () => (Object.keys(config.fields) as SheetFieldKey[]),
     [config.fields]
@@ -219,6 +254,10 @@ export default function AnswerSheetGeneratorScreen() {
   };
 
   const runAction = async (action: Exclude<BusyAction, null>) => {
+    if (fourSheetBlocked) {
+      setError(fourSheetWarning);
+      return;
+    }
     setBusyAction(action);
     setError('');
     setMessage('');
@@ -394,9 +433,16 @@ export default function AnswerSheetGeneratorScreen() {
             <View style={styles.settingBlock}>
               <Text style={styles.label}>Sheets per page</Text>
               <OptionGroup
-                options={[{ label: 'One', value: 1 }, { label: 'Two', value: 2 }]}
+                options={[{ label: 'One', value: 1 }, { label: 'Two', value: 2 }, { label: 'Four', value: 4 }]}
                 value={config.sheetsPerPage}
-                onChange={(value) => updateConfig('sheetsPerPage', Number(value) as 1 | 2)}
+                onChange={(value) => {
+                  const sheetsPerPage = Number(value) as 1 | 2 | 4;
+                  setConfig((current) => ({
+                    ...current,
+                    sheetsPerPage,
+                    orientation: sheetsPerPage === 4 ? 'landscape' : current.orientation,
+                  }));
+                }}
               />
             </View>
           </View>
@@ -467,7 +513,7 @@ export default function AnswerSheetGeneratorScreen() {
           <View style={styles.previewHeadingRow}>
             <View>
               <Text style={styles.sectionTitle}>Print preview</Text>
-              <Text style={styles.previewCaption}>{`${config.paperSize === 'a4' ? 'A4' : 'US Letter'} · ${config.orientation} · ${config.sheetsPerPage} sheet${config.sheetsPerPage === 2 ? 's' : ''}`}</Text>
+              <Text style={styles.previewCaption}>{`${config.paperSize === 'a4' ? 'A4' : 'US Letter'} · ${config.orientation} · ${config.sheetsPerPage} sheet${config.sheetsPerPage === 1 ? '' : 's'}`}</Text>
             </View>
             <View style={[styles.compatibilityBadge, scannerReady ? styles.readyBadge : styles.manualBadge]}>
               <Text style={styles.compatibilityText}>{scannerReady ? 'Scanner ready' : 'Print only'}</Text>
@@ -476,7 +522,13 @@ export default function AnswerSheetGeneratorScreen() {
           {!scannerReady && (
             <Text style={styles.compatibilityNote}>The current camera scanner recognizes 25- and 50-item CheckMate layouts. Other counts can be printed and graded manually.</Text>
           )}
-          <SheetPreview config={config} />
+          {!!fourSheetWarning && <Text style={styles.fourSheetWarning}>{fourSheetWarning}</Text>}
+          {fourSheetBlocked ? (
+            <View style={styles.unsupportedPreview}>
+              <Text style={styles.unsupportedPreviewTitle}>Four sheets would be too dense</Text>
+              <Text style={styles.unsupportedPreviewText}>Choose 25 questions or fewer, or switch to one or two sheets per page.</Text>
+            </View>
+          ) : <SheetPreview config={config} />}
         </View>
 
         {Boolean(message || error) && (
@@ -486,7 +538,7 @@ export default function AnswerSheetGeneratorScreen() {
         )}
 
         <View style={styles.actionRow}>
-          <Pressable style={styles.secondaryAction} onPress={() => setPreviewOpen(true)}>
+          <Pressable disabled={fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => setPreviewOpen(true)}>
             <Eye size={17} color="#E2E8F0" />
             <Text style={styles.secondaryActionText}>Preview</Text>
           </Pressable>
@@ -494,15 +546,15 @@ export default function AnswerSheetGeneratorScreen() {
             <KeyRound size={17} color="#FFFFFF" />
             <Text style={styles.primaryActionText}>Answer Key</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null} style={styles.secondaryAction} onPress={() => runAction('download')}>
+          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('download')}>
             {busyAction === 'download' ? <ActivityIndicator size="small" color="#E2E8F0" /> : <Download size={17} color="#E2E8F0" />}
             <Text style={styles.secondaryActionText}>Save PDF</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null} style={styles.primaryAction} onPress={() => runAction('print')}>
+          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.primaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('print')}>
             {busyAction === 'print' ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Printer size={17} color="#FFFFFF" />}
             <Text style={styles.primaryActionText}>Print</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null} style={styles.shareAction} onPress={() => runAction('share')}>
+          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.shareAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('share')}>
             {busyAction === 'share' ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Share2 size={17} color="#FFFFFF" />}
             <Text style={styles.primaryActionText}>Share PDF</Text>
           </Pressable>
@@ -613,10 +665,14 @@ const styles = StyleSheet.create({
   manualBadge: { backgroundColor: '#854D0E' },
   compatibilityText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700' },
   compatibilityNote: { color: '#FDE68A', fontSize: 10, lineHeight: 14, marginHorizontal: 14, marginTop: 8 },
+  fourSheetWarning: { color: '#FDE68A', fontSize: 10, lineHeight: 14, marginHorizontal: 14, marginTop: 8 },
   previewScroller: { padding: 14, alignItems: 'flex-start' },
   paperPreview: { backgroundColor: '#FFFFFF', padding: 10, flexDirection: 'row', borderWidth: 1, borderColor: '#94A3B8', elevation: 3 },
   miniSheet: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#111827', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
   previewCutLine: { width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#64748B', marginHorizontal: 8 },
+  previewSheetSlot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  previewCutLineFourVertical: { position: 'absolute', top: 10, bottom: 10, width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#64748B', zIndex: 3 },
+  previewCutLineFourHorizontal: { position: 'absolute', left: 10, right: 10, height: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: '#64748B', zIndex: 3 },
   previewMarker: { width: 8, height: 8, backgroundColor: '#000000', position: 'absolute', zIndex: 2 },
   previewMarkerTl: { top: 4, left: 4 }, previewMarkerTr: { top: 4, right: 4 },
   previewMarkerBl: { bottom: 4, left: 4 }, previewMarkerBr: { bottom: 4, right: 4 },
@@ -632,11 +688,16 @@ const styles = StyleSheet.create({
   previewQuestionGrid: { flexDirection: 'row', gap: 5, flex: 1 },
   previewQuestionColumn: { flex: 1 },
   previewQuestionRow: { minHeight: 13, flex: 1, maxHeight: 18, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#D1D5DB' },
+  previewQuestionRowCompact: { minHeight: 8, maxHeight: 11 },
   previewQuestionNumber: { color: '#000000', width: 19, fontSize: 5.5, fontWeight: '700', textAlign: 'right', marginRight: 3 },
   previewBubbles: { flex: 1, flexDirection: 'row', justifyContent: 'space-evenly' },
   previewBubble: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: '#000000', alignItems: 'center', justifyContent: 'center' },
+  previewBubbleCompact: { width: 8, height: 8, borderRadius: 4 },
   previewBubbleText: { color: '#000000', fontSize: 4, fontWeight: '700' },
   previewLayoutId: { position: 'absolute', bottom: 2, left: 12, right: 12, color: '#000000', fontSize: 4 },
+  unsupportedPreview: { minHeight: 150, margin: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#92400E', borderRadius: 7, backgroundColor: '#1C1917', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  unsupportedPreviewTitle: { color: '#FDE68A', fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  unsupportedPreviewText: { color: '#D6D3D1', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 5 },
   feedback: { borderRadius: 7, borderWidth: 1, padding: 10 },
   feedbackSuccess: { backgroundColor: '#064E3B', borderColor: '#10B981' },
   feedbackError: { backgroundColor: '#7F1D1D', borderColor: '#EF4444' },
@@ -648,6 +709,7 @@ const styles = StyleSheet.create({
   primaryAction: { minWidth: 110, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#4F46E5', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   shareAction: { minWidth: 120, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#0891B2', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   primaryActionText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  disabledAction: { opacity: 0.4 },
   modalScreen: { flex: 1, backgroundColor: '#0F172A' },
   modalHeader: { minHeight: 78, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#334155' },
   modalHeaderCopy: { flex: 1, paddingRight: 12 },

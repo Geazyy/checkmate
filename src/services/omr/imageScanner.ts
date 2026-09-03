@@ -5,7 +5,7 @@ import { decode } from 'jpeg-js';
 
 import { AnswerDetectionStatus, BubbleAnalysisResult, OptionCount, QuestionCount } from '../../types';
 import { OPTION_LETTERS } from './scannerEngine';
-import { OMR_CANONICAL_SIZE, OMR_ROWS_PER_COLUMN, scannerSupportsItemCount } from './sheetLayout';
+import { OMR_CANONICAL_SIZE, OMR_ROWS_PER_COLUMN, getScannerSheetLayout } from './sheetLayout';
 
 const ANALYSIS_WIDTH = 900;
 const NORMALIZED_WIDTH = OMR_CANONICAL_SIZE.width;
@@ -825,7 +825,8 @@ export async function analyzeAnswerSheetImageDetailed(
   totalQuestions: QuestionCount,
   optionsCount: OptionCount
 ): Promise<OmrImageAnalysis> {
-  if (!scannerSupportsItemCount(totalQuestions)) {
+  const scannerLayout = getScannerSheetLayout(totalQuestions, optionsCount);
+  if (!scannerLayout) {
     throw new OmrScanError('Automatic photo recognition currently supports 25- and 50-question sheets.');
   }
   const source = await loadSmallGrayscaleImage(imageUri);
@@ -836,11 +837,11 @@ export async function analyzeAnswerSheetImageDetailed(
   let sourceGrid: BubbleGrid;
   let mode: OmrImageAnalysis['geometry']['mode'] = 'partial-grid';
 
-  if (totalQuestions === 25) {
-    sourceGrid = discoverPartialBubbleGrid(normalizedSource, optionsCount, OMR_ROWS_PER_COLUMN);
+  if (scannerLayout.columnCount === 1) {
+    sourceGrid = discoverPartialBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn);
     analysisGrid = sourceGrid;
   } else {
-    sourceGrid = discoverTwoColumnBubbleGrid(normalizedSource, optionsCount, OMR_ROWS_PER_COLUMN);
+    sourceGrid = discoverTwoColumnBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn);
     const geometryConfidence = gridGeometryConfidence(sourceGrid, optionsCount);
     if (geometryConfidence < 0.82) {
       throw new OmrScanError('Answer-sheet alignment failed. Please retake the photo with the full sheet flat and visible.');
@@ -853,8 +854,8 @@ export async function analyzeAnswerSheetImageDetailed(
 
   const rawRows: Array<Record<string, number>> = [];
   for (let question = 1; question <= totalQuestions; question++) {
-    const column = totalQuestions === 25 ? 0 : Math.floor((question - 1) / OMR_ROWS_PER_COLUMN);
-    const row = (question - 1) % OMR_ROWS_PER_COLUMN;
+    const column = scannerLayout.columnCount === 1 ? 0 : Math.floor((question - 1) / scannerLayout.rowsPerColumn);
+    const row = (question - 1) % scannerLayout.rowsPerColumn;
     const optionOffset = column * optionsCount;
     const rowCenters = analysisGrid.rowXCenters?.[row];
     rawRows.push(Object.fromEntries(options.map((option, optionIndex) => [
@@ -871,8 +872,8 @@ export async function analyzeAnswerSheetImageDetailed(
   const calibratedRows = calibrateMarkScores(rawRows, options);
   const results: BubbleAnalysisResult[] = calibratedRows.map((ratios, questionIndex) => {
     const question = questionIndex + 1;
-    const column = totalQuestions === 25 ? 0 : Math.floor(questionIndex / OMR_ROWS_PER_COLUMN);
-    const row = questionIndex % OMR_ROWS_PER_COLUMN;
+    const column = scannerLayout.columnCount === 1 ? 0 : Math.floor(questionIndex / scannerLayout.rowsPerColumn);
+    const row = questionIndex % scannerLayout.rowsPerColumn;
     const optionOffset = column * optionsCount;
     const sourceRow = sourceGrid.rowXCenters?.[row]
       ?? options.map((_, optionIndex) => sourceGrid.xCenters[optionOffset + optionIndex]);
@@ -898,7 +899,7 @@ export async function analyzeAnswerSheetImageDetailed(
       },
     };
   });
-  const confidence = totalQuestions === 25 ? 0.9 : gridGeometryConfidence(sourceGrid, optionsCount);
+  const confidence = scannerLayout.columnCount === 1 ? 0.9 : gridGeometryConfidence(sourceGrid, optionsCount);
   if (__DEV__) {
     console.info('[CheckMate OMR]', JSON.stringify({
       source: `${source.width}x${source.height}`,

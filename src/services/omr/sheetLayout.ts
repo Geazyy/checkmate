@@ -17,7 +17,7 @@ export const OMR_50_AD_LAYOUT = {
 
 export type PaperSize = 'a4' | 'letter';
 export type PageOrientation = 'portrait' | 'landscape';
-export type SheetsPerPage = 1 | 2;
+export type SheetsPerPage = 1 | 2 | 4;
 export type SheetFieldKey =
   | 'studentName'
   | 'studentId'
@@ -83,6 +83,8 @@ const PAPER_POINTS = {
   letter: { width: 612, height: 792 },
 } as const;
 
+const POINTS_PER_MILLIMETER = 72 / 25.4;
+
 export function clampItemCount(value: number) {
   if (!Number.isFinite(value)) return 25;
   return Math.min(100, Math.max(1, Math.round(value)));
@@ -111,6 +113,14 @@ export function getPagePoints(paperSize: PaperSize, orientation: PageOrientation
     : { width: page.width, height: page.height };
 }
 
+export function getPageMillimeters(paperSize: PaperSize, orientation: PageOrientation) {
+  const points = getPagePoints(paperSize, orientation);
+  return {
+    width: points.width / POINTS_PER_MILLIMETER,
+    height: points.height / POINTS_PER_MILLIMETER,
+  };
+}
+
 export function getPageCssSize(paperSize: PaperSize, orientation: PageOrientation) {
   const size = paperSize === 'a4' ? 'A4' : 'Letter';
   return `${size} ${orientation}`;
@@ -130,4 +140,41 @@ export function buildAnswerSheetFilename(config: AnswerSheetConfig) {
 
 export function scannerSupportsItemCount(itemCount: number): itemCount is 25 | 50 {
   return (SCANNER_SUPPORTED_ITEM_COUNTS as readonly number[]).includes(itemCount);
+}
+
+export function getFourSheetWarning(config: AnswerSheetConfig) {
+  if (config.sheetsPerPage !== 4) return '';
+  if (clampItemCount(config.itemCount) > 25) {
+    return 'Four sheets per page supports up to 25 questions. Use one or two sheets per page to keep bubbles readable and scannable.';
+  }
+  if (config.orientation === 'portrait') {
+    return 'Four sheets fit best in landscape. Portrait is supported, but landscape gives each cut sheet more usable space.';
+  }
+  return '';
+}
+
+export interface ScannerSheetLayout {
+  itemCount: 25 | 50;
+  choiceCount: 4 | 5;
+  rowsPerColumn: number;
+  columnCount: 1 | 2;
+  canonicalWidth: number;
+  canonicalHeight: number;
+  supportsCutSheets: boolean;
+}
+
+export function getScannerSheetLayout(
+  itemCount: number,
+  choiceCount: 4 | 5
+): ScannerSheetLayout | undefined {
+  if (!scannerSupportsItemCount(itemCount)) return undefined;
+  return {
+    itemCount,
+    choiceCount,
+    rowsPerColumn: OMR_ROWS_PER_COLUMN,
+    columnCount: itemCount === 50 ? 2 : 1,
+    canonicalWidth: OMR_CANONICAL_SIZE.width,
+    canonicalHeight: OMR_CANONICAL_SIZE.height,
+    supportsCutSheets: true,
+  };
 }
