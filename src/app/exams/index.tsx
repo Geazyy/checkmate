@@ -1,50 +1,194 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { ArrowRight, CheckCircle2, FileText, Plus, ScanLine, X } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import {
+  Archive,
+  ArrowDownAZ,
+  ArrowRight,
+  CheckCircle2,
+  Copy,
+  FileText,
+  MoreVertical,
+  Pencil,
+  Plus,
+  RotateCcw,
+  ScanLine,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import { Href, useRouter } from 'expo-router';
 import { AppShell } from '../../components/common/AppShell';
+import { ExamEditorModal } from '../../components/exams/ExamEditorModal';
 import { useExamStore } from '../../store/useExamStore';
-import { QuestionCount } from '../../types';
+import { useScanStore } from '../../store/useScanStore';
+import { Exam, OptionCount, QuestionCount } from '../../types';
+
+const QUESTION_COUNTS: QuestionCount[] = [10, 20, 25, 30, 40, 50, 100];
+type ExamFilter = 'active' | 'archived' | 'all';
+type ExamSort = 'updated' | 'title' | 'scans';
+
+const SORT_LABELS: Record<ExamSort, string> = {
+  updated: 'Recently updated',
+  title: 'Title A-Z',
+  scans: 'Most scans',
+};
 
 export default function ExamsManagerScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { exams, answerKeysByExamId, setActiveExam, addExam } = useExamStore();
+  const {
+    exams,
+    classes,
+    answerKeysByExamId,
+    setActiveExam,
+    addExam,
+    updateExam,
+    duplicateExam,
+    archiveExam,
+    restoreExam,
+    deleteExam,
+  } = useExamStore();
+  const scannedResults = useScanStore((state) => state.scannedResults);
+  const removeExamResults = useScanStore((state) => state.removeExamResults);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newSubject, setNewSubject] = useState('');
+  const [newClassId, setNewClassId] = useState<string | null>(classes[0]?.id ?? null);
   const [questionCount, setQuestionCount] = useState<QuestionCount>(25);
+  const [optionCount, setOptionCount] = useState<OptionCount>(4);
+  const [passingScore, setPassingScore] = useState('60');
   const [formError, setFormError] = useState('');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ExamFilter>('active');
+  const [sort, setSort] = useState<ExamSort>('updated');
+  const [menuExam, setMenuExam] = useState<Exam | null>(null);
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [deletingExam, setDeletingExam] = useState<Exam | null>(null);
+  const [feedback, setFeedback] = useState('');
   const wide = width >= 760;
 
-  const closeForm = () => { setIsCreating(false); setFormError(''); };
+  const scanCountFor = (exam: Exam) => Math.max(
+    exam.scanned_count ?? 0,
+    scannedResults.filter((scan) => scan.exam_id === exam.id).length,
+  );
+
+  const visibleExams = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return exams
+      .filter((exam) => {
+        const archived = exam.status === 'archived' || !!exam.archived_at;
+        if (filter === 'active' && archived) return false;
+        if (filter === 'archived' && !archived) return false;
+        if (!normalizedQuery) return true;
+        return [exam.title, exam.class_name, exam.description, exam.sheet_code]
+          .filter(Boolean)
+          .some((value) => value!.toLocaleLowerCase().includes(normalizedQuery));
+      })
+      .sort((a, b) => {
+        if (sort === 'title') return a.title.localeCompare(b.title);
+        if (sort === 'scans') return scanCountFor(b) - scanCountFor(a);
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+  }, [exams, filter, query, sort, scannedResults]);
+
+  const closeCreateForm = () => {
+    setIsCreating(false);
+    setFormError('');
+  };
+
   const handleCreateExam = () => {
-    if (!newTitle.trim()) { setFormError('Enter an exam title to continue.'); return; }
+    const score = Number(passingScore);
+    if (!newTitle.trim()) {
+      setFormError('Enter an exam title to continue.');
+      return;
+    }
+    if (!Number.isFinite(score) || score < 0 || score > 100) {
+      setFormError('Passing score must be between 0 and 100.');
+      return;
+    }
+    const selectedClass = classes.find((item) => item.id === newClassId);
     const id = `exam-${Date.now()}`;
-    const exam = {
-      id, teacher_id: 'demo-teacher-id', title: newTitle.trim(), description: newSubject.trim(),
-      total_questions: questionCount, options_per_question: 4 as const, passing_score: 60,
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      scanned_count: 0, average_score: 0, class_name: newSubject.trim() || 'General',
+    const now = new Date().toISOString();
+    const exam: Exam = {
+      id,
+      teacher_id: 'demo-teacher-id',
+      class_id: selectedClass?.id,
+      title: newTitle.trim(),
+      description: selectedClass?.subject ?? '',
+      total_questions: questionCount,
+      options_per_question: optionCount,
+      passing_score: Math.round(score),
+      status: 'draft',
+      created_at: now,
+      updated_at: now,
+      scanned_count: 0,
+      average_score: 0,
+      class_name: selectedClass?.name ?? 'General',
     };
     const keys = Array.from({ length: questionCount }, (_, index) => ({
-      exam_id: id, question_number: index + 1, correct_options: ['A'], points: 1,
+      exam_id: id,
+      question_number: index + 1,
+      correct_options: [] as string[],
+      points: 1,
     }));
     addExam(exam, keys);
-    setNewTitle(''); setNewSubject(''); closeForm();
+    setNewTitle('');
+    setQuestionCount(25);
+    setOptionCount(4);
+    setPassingScore('60');
+    closeCreateForm();
     router.push(`/exams/${id}` as Href);
+  };
+
+  const cycleSort = () => {
+    setSort((current) => current === 'updated' ? 'title' : current === 'title' ? 'scans' : 'updated');
+  };
+
+  const handleDuplicate = (exam: Exam) => {
+    const duplicated = duplicateExam(exam.id);
+    setMenuExam(null);
+    if (duplicated) setFeedback(`Created ${duplicated.title}.`);
+  };
+
+  const handleArchiveToggle = (exam: Exam) => {
+    const archived = exam.status === 'archived' || !!exam.archived_at;
+    if (archived) {
+      restoreExam(exam.id);
+      setFeedback(`${exam.title} restored.`);
+    } else {
+      archiveExam(exam.id);
+      setFeedback(`${exam.title} archived. Its answer key and scans are preserved.`);
+    }
+    setMenuExam(null);
+  };
+
+  const handleDelete = () => {
+    if (!deletingExam) return;
+    removeExamResults(deletingExam.id);
+    deleteExam(deletingExam.id);
+    setFeedback(`${deletingExam.title} was permanently deleted.`);
+    setDeletingExam(null);
   };
 
   return (
     <AppShell title="Exams">
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.pageHeading}>
           <View style={styles.headingCopy}>
             <Text style={styles.eyebrow}>ASSESSMENTS</Text>
             <Text style={styles.pageTitle}>Exam catalog</Text>
             <Text style={styles.pageSub}>Set up keys, print sheets, and start grading from one place.</Text>
           </View>
-          <TouchableOpacity style={styles.createButton} onPress={() => isCreating ? closeForm() : setIsCreating(true)}>
+          <TouchableOpacity style={styles.createButton} onPress={() => isCreating ? closeCreateForm() : setIsCreating(true)}>
             {isCreating ? <X size={18} color="#FFFFFF" /> : <Plus size={18} color="#FFFFFF" />}
             <Text style={styles.createButtonText}>{isCreating ? 'Close' : 'New exam'}</Text>
           </TouchableOpacity>
@@ -53,32 +197,64 @@ export default function ExamsManagerScreen() {
         {isCreating && (
           <View style={styles.formPanel}>
             <Text style={styles.formTitle}>Create an exam</Text>
-            <Text style={styles.formSub}>You can edit the answer key after creating it.</Text>
+            <Text style={styles.formSub}>Start with the details, then configure the answer key.</Text>
             <View style={[styles.formFields, wide && styles.formFieldsWide]}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Exam title</Text>
-                <TextInput autoFocus style={[styles.input, formError && !newTitle.trim() ? styles.inputError : undefined]}
+                <TextInput autoFocus style={[styles.input, !!formError && !newTitle.trim() && styles.inputError]}
                   placeholder="Example: Chemistry Quiz 3" placeholderTextColor="#64748B" value={newTitle}
                   onChangeText={(value) => { setNewTitle(value); setFormError(''); }} />
               </View>
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Subject or class</Text>
-                <TextInput style={styles.input} placeholder="Example: Chem 202 - Sec B" placeholderTextColor="#64748B"
-                  value={newSubject} onChangeText={setNewSubject} />
+                <Text style={styles.label}>Class</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.classChoices}>
+                  <TouchableOpacity style={[styles.classChoice, newClassId === null && styles.classChoiceActive]} onPress={() => setNewClassId(null)}>
+                    <Text style={[styles.classChoiceText, newClassId === null && styles.classChoiceTextActive]}>General</Text>
+                  </TouchableOpacity>
+                  {classes.map((classSection) => (
+                    <TouchableOpacity key={classSection.id} style={[styles.classChoice, newClassId === classSection.id && styles.classChoiceActive]} onPress={() => setNewClassId(classSection.id)}>
+                      <Text style={[styles.classChoiceText, newClassId === classSection.id && styles.classChoiceTextActive]} numberOfLines={1}>{classSection.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             </View>
-            <Text style={styles.label}>Number of questions</Text>
-            <View style={styles.segmentedControl}>
-              {([25, 50, 100] as QuestionCount[]).map((count) => (
-                <TouchableOpacity key={count} style={[styles.segment, questionCount === count && styles.segmentActive]}
-                  onPress={() => setQuestionCount(count)}>
-                  <Text style={[styles.segmentText, questionCount === count && styles.segmentTextActive]}>{count}</Text>
-                </TouchableOpacity>
-              ))}
+
+            <View style={[styles.formFields, wide && styles.formFieldsWide]}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Number of questions</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.questionChoices}>
+                  {QUESTION_COUNTS.map((count) => (
+                    <TouchableOpacity key={count} style={[styles.countChoice, questionCount === count && styles.countChoiceActive]} onPress={() => setQuestionCount(count)}>
+                      <Text style={[styles.countChoiceText, questionCount === count && styles.countChoiceTextActive]}>{count}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.compactSettings}>
+                <View style={styles.optionSetting}>
+                  <Text style={styles.label}>Choices</Text>
+                  <View style={styles.segmentedControl}>
+                    {([4, 5] as OptionCount[]).map((count) => (
+                      <TouchableOpacity key={count} style={[styles.segment, optionCount === count && styles.segmentActive]} onPress={() => setOptionCount(count)}>
+                        <Text style={[styles.segmentText, optionCount === count && styles.segmentTextActive]}>{count === 4 ? 'A-D' : 'A-E'}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.scoreSetting}>
+                  <Text style={styles.label}>Passing score</Text>
+                  <View style={styles.scoreInputWrap}>
+                    <TextInput style={[styles.input, styles.scoreInput]} value={passingScore} onChangeText={setPassingScore} keyboardType="number-pad" />
+                    <Text style={styles.percent}>%</Text>
+                  </View>
+                </View>
+              </View>
             </View>
+
             {!!formError && <Text style={styles.errorText}>{formError}</Text>}
             <View style={styles.formActions}>
-              <TouchableOpacity style={styles.secondaryButton} onPress={closeForm}><Text style={styles.secondaryButtonText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={closeCreateForm}><Text style={styles.secondaryButtonText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.primaryButton} onPress={handleCreateExam}>
                 <Text style={styles.primaryButtonText}>Create exam</Text><ArrowRight size={17} color="#FFFFFF" />
               </TouchableOpacity>
@@ -86,71 +262,217 @@ export default function ExamsManagerScreen() {
           </View>
         )}
 
-        <View style={styles.listHeader}><Text style={styles.sectionTitle}>Your exams</Text><Text style={styles.countText}>{exams.length} total</Text></View>
-        <View style={[styles.examGrid, wide && styles.examGridWide]}>
-          {exams.map((exam) => {
-            const configured = (answerKeysByExamId[exam.id] ?? []).filter((key) => key.correct_options.length > 0).length;
-            const keyReady = configured === exam.total_questions;
-            return (
-              <View key={exam.id} style={[styles.examCard, wide && styles.examCardWide]}>
-                <View style={styles.examTopRow}>
-                  <View style={styles.documentIcon}><FileText size={21} color="#67E8F9" /></View>
-                  <View style={[styles.statusBadge, keyReady && styles.statusBadgeReady]}>
-                    <CheckCircle2 size={13} color={keyReady ? '#34D399' : '#FBBF24'} />
-                    <Text style={[styles.statusText, keyReady && styles.statusTextReady]}>{keyReady ? 'Key ready' : `${configured}/${exam.total_questions} keyed`}</Text>
+        <View style={styles.searchBar}>
+          <Search size={19} color="#64748B" />
+          <TextInput accessibilityLabel="Search exams" style={styles.searchInput} value={query} onChangeText={setQuery}
+            placeholder="Search exams, classes, topics, or sheet codes" placeholderTextColor="#64748B" />
+          {!!query && (
+            <TouchableOpacity accessibilityLabel="Clear search" style={styles.clearSearch} onPress={() => setQuery('')}>
+              <X size={17} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.toolbar}>
+          <View style={styles.filters}>
+            {(['active', 'archived', 'all'] as ExamFilter[]).map((value) => (
+              <TouchableOpacity key={value} style={[styles.filterButton, filter === value && styles.filterButtonActive]} onPress={() => setFilter(value)}>
+                <Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value[0].toUpperCase() + value.slice(1)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity accessibilityLabel="Change exam sorting" style={styles.sortButton} onPress={cycleSort}>
+            <ArrowDownAZ size={16} color="#94A3B8" />
+            <Text style={styles.sortText}>{SORT_LABELS[sort]}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {!!feedback && (
+          <View style={styles.feedback}>
+            <CheckCircle2 size={16} color="#34D399" />
+            <Text style={styles.feedbackText}>{feedback}</Text>
+            <TouchableOpacity accessibilityLabel="Dismiss message" onPress={() => setFeedback('')}><X size={16} color="#94A3B8" /></TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.listHeader}>
+          <Text style={styles.sectionTitle}>{filter === 'archived' ? 'Archived exams' : filter === 'all' ? 'All exams' : 'Your exams'}</Text>
+          <Text style={styles.countText}>{visibleExams.length} shown</Text>
+        </View>
+
+        {visibleExams.length > 0 ? (
+          <View style={[styles.examGrid, wide && styles.examGridWide]}>
+            {visibleExams.map((exam) => {
+              const configured = (answerKeysByExamId[exam.id] ?? []).filter((key) => key.correct_options.length > 0).length;
+              const keyReady = configured === exam.total_questions;
+              const archived = exam.status === 'archived' || !!exam.archived_at;
+              const scans = scanCountFor(exam);
+              return (
+                <View key={exam.id} style={[styles.examCard, wide && styles.examCardWide, archived && styles.examCardArchived]}>
+                  <View style={styles.examTopRow}>
+                    <View style={styles.documentIcon}><FileText size={21} color="#67E8F9" /></View>
+                    <View style={styles.examTopActions}>
+                      <View style={[styles.statusBadge, keyReady && styles.statusBadgeReady, archived && styles.statusBadgeArchived]}>
+                        {archived ? <Archive size={13} color="#94A3B8" /> : <CheckCircle2 size={13} color={keyReady ? '#34D399' : '#FBBF24'} />}
+                        <Text style={[styles.statusText, keyReady && styles.statusTextReady, archived && styles.statusTextArchived]}>
+                          {archived ? 'Archived' : keyReady ? 'Key ready' : `${configured}/${exam.total_questions} keyed`}
+                        </Text>
+                      </View>
+                      <TouchableOpacity accessibilityLabel={`More actions for ${exam.title}`} style={styles.moreButton} onPress={() => setMenuExam(exam)}>
+                        <MoreVertical size={19} color="#94A3B8" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={styles.examTitle} numberOfLines={2}>{exam.title}</Text>
+                  <Text style={styles.examSub} numberOfLines={1}>{exam.class_name || exam.description || 'General'}</Text>
+                  <View style={styles.examMeta}>
+                    <Text style={styles.metaText}>{exam.total_questions} questions</Text><View style={styles.metaDot} />
+                    <Text style={styles.metaText}>A-{String.fromCharCode(64 + exam.options_per_question)}</Text><View style={styles.metaDot} />
+                    <Text style={styles.metaText}>{scans} scans</Text>
+                  </View>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity accessibilityLabel={`Open ${exam.title}`} style={styles.openButton}
+                      onPress={() => { setActiveExam(exam); router.push(`/exams/${exam.id}` as Href); }}>
+                      <Text style={styles.openButtonText}>Open exam</Text><ArrowRight size={16} color="#E2E8F0" />
+                    </TouchableOpacity>
+                    {!archived && (
+                      <TouchableOpacity accessibilityLabel={`Scan ${exam.title}`} style={styles.scanButton}
+                        onPress={() => { setActiveExam(exam); router.push({ pathname: '/scan', params: { examId: exam.id } }); }}>
+                        <ScanLine size={18} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
-                <Text style={styles.examTitle} numberOfLines={2}>{exam.title}</Text>
-                <Text style={styles.examSub} numberOfLines={1}>{exam.class_name || exam.description || 'General'}</Text>
-                <View style={styles.examMeta}>
-                  <Text style={styles.metaText}>{exam.total_questions} questions</Text><View style={styles.metaDot} /><Text style={styles.metaText}>{exam.scanned_count ?? 0} scans</Text>
-                </View>
-                <View style={styles.cardActions}>
-                  <TouchableOpacity accessibilityLabel={`Open ${exam.title}`} style={styles.openButton}
-                    onPress={() => { setActiveExam(exam); router.push(`/exams/${exam.id}` as Href); }}>
-                    <Text style={styles.openButtonText}>Open exam</Text><ArrowRight size={16} color="#E2E8F0" />
-                  </TouchableOpacity>
-                  <TouchableOpacity accessibilityLabel={`Scan ${exam.title}`} style={styles.scanButton}
-                    onPress={() => { setActiveExam(exam); router.push({ pathname: '/scan', params: { examId: exam.id } }); }}>
-                    <ScanLine size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Search size={25} color="#64748B" />
+            <Text style={styles.emptyTitle}>{query ? 'No matching exams' : filter === 'archived' ? 'No archived exams' : 'No exams yet'}</Text>
+            <Text style={styles.emptyText}>{query ? 'Try another title, class, topic, or code.' : 'Create an exam to configure its key and begin scanning.'}</Text>
+          </View>
+        )}
       </ScrollView>
+
+      <Modal visible={!!menuExam} transparent animationType="fade" onRequestClose={() => setMenuExam(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setMenuExam(null)}>
+          <Pressable style={styles.actionMenu} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.actionMenuHeader}>
+              <View style={styles.actionMenuCopy}>
+                <Text style={styles.actionMenuTitle} numberOfLines={1}>{menuExam?.title}</Text>
+                <Text style={styles.actionMenuSub}>Exam actions</Text>
+              </View>
+              <TouchableOpacity accessibilityLabel="Close exam actions" style={styles.moreButton} onPress={() => setMenuExam(null)}><X size={18} color="#94A3B8" /></TouchableOpacity>
+            </View>
+            <ActionRow icon={Pencil} label="Edit exam" onPress={() => { setEditingExam(menuExam); setMenuExam(null); }} />
+            <ActionRow icon={Copy} label="Duplicate exam" onPress={() => menuExam && handleDuplicate(menuExam)} />
+            <ActionRow icon={menuExam?.status === 'archived' || menuExam?.archived_at ? RotateCcw : Archive}
+              label={menuExam?.status === 'archived' || menuExam?.archived_at ? 'Restore exam' : 'Archive exam'}
+              onPress={() => menuExam && handleArchiveToggle(menuExam)} />
+            <View style={styles.menuDivider} />
+            <ActionRow icon={Trash2} label="Delete permanently" danger onPress={() => { setDeletingExam(menuExam); setMenuExam(null); }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <ExamEditorModal
+        exam={editingExam}
+        visible={!!editingExam}
+        onClose={() => setEditingExam(null)}
+        onSave={(updates) => {
+          if (!editingExam) return;
+          updateExam(editingExam.id, updates);
+          setFeedback(`${updates.title ?? editingExam.title} updated.`);
+          setEditingExam(null);
+        }}
+      />
+
+      <Modal visible={!!deletingExam} transparent animationType="fade" onRequestClose={() => setDeletingExam(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setDeletingExam(null)}>
+          <Pressable style={styles.confirmPanel} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.dangerIcon}><Trash2 size={23} color="#FCA5A5" /></View>
+            <Text style={styles.confirmTitle}>Delete this exam permanently?</Text>
+            <Text style={styles.confirmText}>
+              {deletingExam?.title} and its answer key will be removed. {deletingExam ? scanCountFor(deletingExam) : 0} associated scan records will also be deleted. This cannot be undone.
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setDeletingExam(null)}><Text style={styles.secondaryButtonText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}><Trash2 size={16} color="#FFFFFF" /><Text style={styles.deleteButtonText}>Delete exam</Text></TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </AppShell>
   );
 }
 
+type ActionRowProps = {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+};
+
+function ActionRow({ icon: Icon, label, onPress, danger }: ActionRowProps) {
+  return (
+    <TouchableOpacity style={styles.actionRow} onPress={onPress}>
+      <Icon size={18} color={danger ? '#FCA5A5' : '#94A3B8'} />
+      <Text style={[styles.actionRowText, danger && styles.actionRowDanger]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { width: '100%', maxWidth: 1080, alignSelf: 'center', padding: 20, paddingBottom: 30 },
-  pageHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 },
+  content: { width: '100%', maxWidth: 1080, alignSelf: 'center', padding: 20, paddingBottom: 100 },
+  pageHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 20 },
   headingCopy: { flex: 1 }, eyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
   pageTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '800', marginTop: 4 },
   pageSub: { color: '#94A3B8', fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 500 },
   createButton: { minHeight: 42, paddingHorizontal: 15, borderRadius: 8, backgroundColor: '#4F46E5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   createButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  formPanel: { backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 18, marginBottom: 26 },
+  formPanel: { backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 18, marginBottom: 20 },
   formTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800' }, formSub: { color: '#94A3B8', fontSize: 11, marginTop: 3, marginBottom: 16 },
-  formFields: { gap: 12 }, formFieldsWide: { flexDirection: 'row' }, fieldGroup: { flex: 1 },
+  formFields: { gap: 12 }, formFieldsWide: { flexDirection: 'row' }, fieldGroup: { flex: 1, minWidth: 0 },
   label: { color: '#CBD5E1', fontSize: 11, fontWeight: '700', marginBottom: 7 },
   input: { minHeight: 44, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#3B4A61', borderRadius: 8, color: '#F8FAFC', fontSize: 13, paddingHorizontal: 12, marginBottom: 14 },
-  inputError: { borderColor: '#F87171' }, segmentedControl: { width: '100%', maxWidth: 330, flexDirection: 'row', borderRadius: 8, padding: 3, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' },
-  segment: { flex: 1, minHeight: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 6 }, segmentActive: { backgroundColor: '#334155' },
-  segmentText: { color: '#94A3B8', fontSize: 12, fontWeight: '700' }, segmentTextActive: { color: '#FFFFFF' }, errorText: { color: '#FCA5A5', fontSize: 11, marginTop: 8 },
+  inputError: { borderColor: '#F87171' },
+  classChoices: { gap: 7, paddingBottom: 14 }, classChoice: { maxWidth: 190, height: 44, paddingHorizontal: 13, borderRadius: 8, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#3B4A61', justifyContent: 'center' },
+  classChoiceActive: { backgroundColor: '#3730A3', borderColor: '#6366F1' }, classChoiceText: { color: '#94A3B8', fontSize: 11, fontWeight: '700' }, classChoiceTextActive: { color: '#FFFFFF' },
+  questionChoices: { gap: 7, paddingBottom: 14 }, countChoice: { minWidth: 45, height: 38, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#3B4A61', alignItems: 'center', justifyContent: 'center' },
+  countChoiceActive: { backgroundColor: '#334155', borderColor: '#64748B' }, countChoiceText: { color: '#94A3B8', fontSize: 11, fontWeight: '700' }, countChoiceTextActive: { color: '#FFFFFF' },
+  compactSettings: { flex: 1, minWidth: 250, flexDirection: 'row', gap: 10 }, optionSetting: { flex: 1 }, scoreSetting: { width: 120 },
+  segmentedControl: { height: 44, flexDirection: 'row', borderRadius: 8, padding: 3, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' },
+  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 6 }, segmentActive: { backgroundColor: '#334155' }, segmentText: { color: '#94A3B8', fontSize: 11, fontWeight: '700' }, segmentTextActive: { color: '#FFFFFF' },
+  scoreInputWrap: { position: 'relative' }, scoreInput: { marginBottom: 0, paddingRight: 29 }, percent: { position: 'absolute', right: 11, top: 13, color: '#64748B', fontSize: 12 },
+  errorText: { color: '#FCA5A5', fontSize: 11, marginTop: 2 },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9, marginTop: 18 },
   secondaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#475569', alignItems: 'center', justifyContent: 'center' }, secondaryButtonText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
   primaryButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#059669', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 }, primaryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  searchBar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8 },
+  searchInput: { flex: 1, minWidth: 0, height: 46, color: '#F8FAFC', fontSize: 13, paddingVertical: 0 }, clearSearch: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 10, marginBottom: 18 },
+  filters: { flexDirection: 'row', gap: 6 }, filterButton: { minHeight: 34, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', alignItems: 'center', justifyContent: 'center' }, filterButtonActive: { backgroundColor: '#334155' },
+  filterText: { color: '#94A3B8', fontSize: 10, fontWeight: '700' }, filterTextActive: { color: '#FFFFFF' },
+  sortButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, borderRadius: 8 }, sortText: { color: '#94A3B8', fontSize: 10, fontWeight: '700' },
+  feedback: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, borderRadius: 8, backgroundColor: 'rgba(16,185,129,0.10)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.35)', marginBottom: 16 }, feedbackText: { flex: 1, color: '#A7F3D0', fontSize: 11, lineHeight: 16 },
   listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }, sectionTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800' }, countText: { color: '#64748B', fontSize: 11, fontWeight: '600' },
   examGrid: { gap: 11 }, examGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
-  examCard: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 15 }, examCardWide: { width: '48.8%' },
-  examTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, documentIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 8, paddingVertical: 5 }, statusBadgeReady: { backgroundColor: 'rgba(16,185,129,0.12)' },
-  statusText: { color: '#FBBF24', fontSize: 9, fontWeight: '800' }, statusTextReady: { color: '#34D399' },
+  examCard: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 15 }, examCardWide: { width: '48.8%' }, examCardArchived: { opacity: 0.78 },
+  examTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }, documentIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
+  examTopActions: { flexDirection: 'row', alignItems: 'center', gap: 5 }, moreButton: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 8, paddingVertical: 5 }, statusBadgeReady: { backgroundColor: 'rgba(16,185,129,0.12)' }, statusBadgeArchived: { backgroundColor: 'rgba(100,116,139,0.16)' },
+  statusText: { color: '#FBBF24', fontSize: 9, fontWeight: '800' }, statusTextReady: { color: '#34D399' }, statusTextArchived: { color: '#94A3B8' },
   examTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', lineHeight: 21 }, examSub: { color: '#94A3B8', fontSize: 11, marginTop: 5 },
-  examMeta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }, metaText: { color: '#64748B', fontSize: 10, fontWeight: '600' }, metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#475569' },
+  examMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 12 }, metaText: { color: '#64748B', fontSize: 10, fontWeight: '600' }, metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#475569' },
   cardActions: { flexDirection: 'row', gap: 8, marginTop: 16 }, openButton: { flex: 1, minHeight: 40, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#29364A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   openButtonText: { color: '#E2E8F0', fontSize: 12, fontWeight: '700' }, scanButton: { width: 42, height: 40, borderRadius: 8, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' },
+  emptyState: { minHeight: 210, alignItems: 'center', justifyContent: 'center', padding: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: '#334155', borderRadius: 8 }, emptyTitle: { color: '#CBD5E1', fontSize: 14, fontWeight: '800', marginTop: 10 }, emptyText: { color: '#64748B', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 4 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.78)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  actionMenu: { width: '100%', maxWidth: 380, backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 10 },
+  actionMenuHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, marginBottom: 4 }, actionMenuCopy: { flex: 1, minWidth: 0 }, actionMenuTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' }, actionMenuSub: { color: '#64748B', fontSize: 9, marginTop: 2, textTransform: 'uppercase' },
+  actionRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 10, borderRadius: 8 }, actionRowText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' }, actionRowDanger: { color: '#FCA5A5' }, menuDivider: { height: 1, backgroundColor: '#334155', marginVertical: 5 },
+  confirmPanel: { width: '100%', maxWidth: 430, backgroundColor: '#182438', borderWidth: 1, borderColor: '#475569', borderRadius: 8, padding: 20 }, dangerIcon: { width: 44, height: 44, borderRadius: 8, backgroundColor: 'rgba(239,68,68,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  confirmTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '800' }, confirmText: { color: '#94A3B8', fontSize: 11, lineHeight: 17, marginTop: 7 }, confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9, marginTop: 20 },
+  deleteButton: { minHeight: 40, paddingHorizontal: 15, borderRadius: 8, backgroundColor: '#DC2626', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 }, deleteButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });

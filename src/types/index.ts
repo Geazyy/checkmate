@@ -32,8 +32,9 @@ export interface Student {
   created_at: string;
 }
 
-export type QuestionCount = 25 | 50 | 100;
+export type QuestionCount = 10 | 20 | 25 | 30 | 40 | 50 | 100;
 export type OptionCount = 4 | 5;
+export type ExamStatus = 'draft' | 'ready' | 'in_progress' | 'completed' | 'archived';
 
 export interface Exam {
   id: string;
@@ -44,6 +45,9 @@ export interface Exam {
   total_questions: QuestionCount;
   options_per_question: OptionCount;
   passing_score: number;
+  status?: ExamStatus;
+  sheet_code?: string;
+  archived_at?: string;
   created_at: string;
   updated_at: string;
   class_name?: string;

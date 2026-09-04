@@ -29,7 +29,8 @@ export default function CameraScanScreen() {
   const videoRef = useRef<any>(null);
   const cameraRef = useRef<CameraView>(null);
   const isFocused = useIsFocused();
-  const currentExam = exams.find((exam) => exam.id === examId);
+  const availableExams = exams.filter((exam) => exam.status !== 'archived' && !exam.archived_at);
+  const currentExam = availableExams.find((exam) => exam.id === examId);
   const currentAnswerKeys = currentExam ? answerKeysByExamId[currentExam.id] ?? [] : [];
 
   useEffect(() => {
@@ -212,7 +213,7 @@ export default function CameraScanScreen() {
             </Text>
 
             <View style={styles.pickerList}>
-              {exams.map((exam) => {
+              {availableExams.map((exam) => {
                 const keyCount = (answerKeysByExamId[exam.id] ?? []).filter((key) => key.correct_options.length > 0).length;
                 const keyReady = keyCount === exam.total_questions;
                 return (

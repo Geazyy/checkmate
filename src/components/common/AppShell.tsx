@@ -27,6 +27,7 @@ export function AppShell({ title, children }: AppShellProps) {
   const user = useAuthStore((state) => state.user);
   const [profileOpen, setProfileOpen] = useState(false);
   const desktop = width >= 900;
+  const showHeader = pathname === '/';
 
   const openScan = () => {
     router.push('/scan');
@@ -96,8 +97,15 @@ export function AppShell({ title, children }: AppShellProps) {
       )}
 
       <View style={styles.main}>
-        <AppHeader title={title} compact={desktop} />
-        <View style={[styles.content, desktop && styles.desktopContent]}>{children}</View>
+        {showHeader && <AppHeader title={title} compact={desktop} />}
+        <View
+          style={[
+            styles.content,
+            desktop && styles.desktopContent,
+            !showHeader && !desktop && { paddingTop: insets.top },
+          ]}>
+          {children}
+        </View>
       </View>
 
       {!desktop && (

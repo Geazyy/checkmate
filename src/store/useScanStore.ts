@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { ScanResult } from '../types';
+import { appStorage } from './storage';
 
 interface ScanState {
   isScanning: boolean;
@@ -16,6 +18,7 @@ interface ScanState {
   confirmLastScannedResult: () => void;
   clearLastScannedResult: () => void;
   updateResultItemOption: (scanId: string, questionNumber: number, options: string[]) => void;
+  removeExamResults: (examId: string) => void;
   setPendingSyncCount: (count: number) => void;
 }
 
@@ -73,7 +76,7 @@ const MOCK_SCANS: ScanResult[] = [
   },
 ];
 
-export const useScanStore = create<ScanState>((set) => ({
+export const useScanStore = create<ScanState>()(persist((set) => ({
   isScanning: false,
   isAligned: false,
   torchEnabled: false,
@@ -119,5 +122,14 @@ export const useScanStore = create<ScanState>((set) => ({
           : null,
       };
     }),
+  removeExamResults: (examId) =>
+    set((state) => ({
+      scannedResults: state.scannedResults.filter((scan) => scan.exam_id !== examId),
+      lastScannedResult: state.lastScannedResult?.exam_id === examId ? null : state.lastScannedResult,
+    })),
   setPendingSyncCount: (pendingSyncCount) => set({ pendingSyncCount }),
+}), {
+  name: 'checkmate-scans-v1',
+  storage: createJSONStorage(() => appStorage),
+  partialize: (state) => ({ scannedResults: state.scannedResults, pendingSyncCount: state.pendingSyncCount }),
 }));

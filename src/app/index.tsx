@@ -13,6 +13,7 @@ export default function DashboardScreen() {
   const scannedResults = useScanStore((state) => state.scannedResults);
   const wide = width >= 760;
   const gradedCount = scannedResults.filter((scan) => scan.status === 'graded' || scan.status === 'overridden').length;
+  const activeExams = exams.filter((exam) => exam.status !== 'archived' && !exam.archived_at);
 
   const startScan = () => {
     router.push('/scan');
@@ -49,7 +50,7 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={styles.statCard}><BookOpen size={18} color="#A5B4FC" /><Text style={styles.statValue}>{exams.length}</Text><Text style={styles.statLabel}>Exams</Text></View>
+          <View style={styles.statCard}><BookOpen size={18} color="#A5B4FC" /><Text style={styles.statValue}>{activeExams.length}</Text><Text style={styles.statLabel}>Exams</Text></View>
           <View style={styles.statCard}><CheckCircle2 size={18} color="#34D399" /><Text style={styles.statValue}>{gradedCount}</Text><Text style={styles.statLabel}>Graded sheets</Text></View>
           <View style={styles.statCard}><Users size={18} color="#67E8F9" /><Text style={styles.statValue}>{classes.length}</Text><Text style={styles.statLabel}>Classes</Text></View>
         </View>
@@ -60,7 +61,7 @@ export default function DashboardScreen() {
         </View>
 
         <View style={[styles.examGrid, wide && styles.examGridWide]}>
-          {exams.map((exam) => (
+          {activeExams.map((exam) => (
             <View key={exam.id} style={[styles.examCard, wide && styles.examCardWide]}>
               <View style={styles.examHeadingRow}>
                 <View style={styles.examIcon}><BookOpen size={19} color="#CBD5E1" /></View>
