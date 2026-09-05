@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
 import { OPTION_LETTERS } from '../../services/omr/scannerEngine';
+import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
 
 export default function ScanReviewScreen() {
   const router = useRouter();
@@ -142,11 +143,11 @@ export default function ScanReviewScreen() {
 
       <View style={styles.summaryBar}>
         {[
-          ['Correct', summary.correct, '#10B981'],
-          ['Incorrect', summary.incorrect, '#EF4444'],
-          ['Blank', summary.blank, '#94A3B8'],
-          ['Multiple', summary.multiple, '#F59E0B'],
-          ['Uncertain', summary.uncertain, '#F59E0B'],
+          ['Correct', summary.correct, '#047857'],
+          ['Incorrect', summary.incorrect, '#DC2626'],
+          ['Blank', summary.blank, '#64748B'],
+          ['Multiple', summary.multiple, '#D97706'],
+          ['Uncertain', summary.uncertain, '#D97706'],
         ].map(([label, value, color]) => (
           <View style={styles.summaryItem} key={String(label)}>
             <Text style={[styles.summaryValue, { color: String(color) }]}>{String(value)}</Text>
@@ -238,13 +239,13 @@ export default function ScanReviewScreen() {
             <View style={styles.statusIndicator}>
               {detectionStatus !== 'detected' && (
                 <View style={styles.warningLabel}>
-                  <AlertTriangle size={11} color="#F59E0B" />
+                  <AlertTriangle size={11} color="#D97706" />
                   <Text style={styles.flagText}>{detectionStatus}</Text>
                 </View>
               )}
               {typeof item.confidence === 'number' && (
                 <Text style={styles.confidenceText}>
-                  {Math.round(item.confidence * 100)}% confidence
+                  {Math.round(item.confidence * 100)}% conf
                 </Text>
               )}
               {!item.is_correct && (
@@ -253,8 +254,8 @@ export default function ScanReviewScreen() {
                 </Text>
               )}
               {item.is_correct
-                ? <Check size={17} strokeWidth={3} color="#10B981" />
-                : <X size={17} strokeWidth={3} color="#EF4444" />}
+                ? <Check size={17} strokeWidth={3} color="#047857" />
+                : <X size={17} strokeWidth={3} color="#DC2626" />}
             </View>
           </View>
         );})}
@@ -263,7 +264,7 @@ export default function ScanReviewScreen() {
       {/* Action Footer */}
       <View style={[styles.footer, { paddingBottom: Math.max(16, insets.bottom + 8) }]}>
         <TouchableOpacity style={styles.discardBtn} onPress={handleRescan}>
-          <RotateCcw size={16} color="#F8FAFC" />
+          <RotateCcw size={16} color={ClayColors.textPrimary} />
           <Text style={styles.discardText}>Retake Photo</Text>
         </TouchableOpacity>
 
@@ -279,44 +280,43 @@ export default function ScanReviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: ClayColors.bg,
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: ClayColors.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyText: { color: '#94A3B8', fontSize: 16, marginBottom: 16 },
-  btn: { backgroundColor: '#4F46E5', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
-  btnText: { color: '#FFFFFF', fontWeight: '600' },
+  emptyText: { color: ClayColors.textSecondary, fontSize: 16, marginBottom: 16 },
+  btn: { ...ClayButtonStyle, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16 },
+  btnText: { color: '#FFFFFF', fontWeight: '700' },
   topCard: {
-    backgroundColor: '#1E293B',
+    ...ClayCardStyle,
     marginHorizontal: 16,
-    borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
   },
   studentInfo: { flex: 1 },
-  studentName: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
-  studentSub: { color: '#94A3B8', fontSize: 11, marginTop: 4 },
+  studentName: { color: ClayColors.textPrimary, fontSize: 17, fontWeight: '800' },
+  studentSub: { color: ClayColors.textSecondary, fontSize: 12, marginTop: 4, fontWeight: '500' },
   scorePill: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: ClayColors.cardMint,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
-  scorePillText: { color: '#10B981', fontSize: 16, fontWeight: '800' },
-  percentageText: { color: '#10B981', fontSize: 11, fontWeight: '600' },
+  scorePillText: { color: '#047857', fontSize: 17, fontWeight: '800' },
+  percentageText: { color: '#047857', fontSize: 11, fontWeight: '700' },
   sectionHeader: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
+    color: ClayColors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
@@ -325,22 +325,24 @@ const styles = StyleSheet.create({
     height: 180,
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#020617',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
   },
   warningRegion: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#F59E0B',
-    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderColor: '#D97706',
+    backgroundColor: 'rgba(217, 119, 6, 0.18)',
   },
   warningRegionLabel: {
     position: 'absolute',
     left: -1,
     top: -14,
-    color: '#F59E0B',
-    backgroundColor: '#0F172A',
+    color: '#D97706',
+    backgroundColor: '#FFFFFF',
     fontSize: 9,
     fontWeight: '800',
   },
@@ -348,14 +350,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#334155',
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: '#E2E8F0',
     paddingVertical: 9,
   },
   summaryItem: { flex: 1, alignItems: 'center', minWidth: 0 },
-  summaryValue: { fontSize: 14, fontWeight: '800' },
-  summaryLabel: { color: '#94A3B8', fontSize: 8, marginTop: 2 },
+  summaryValue: { fontSize: 15, fontWeight: '800' },
+  summaryLabel: { color: ClayColors.textSecondary, fontSize: 10, marginTop: 2, fontWeight: '600' },
   gridList: {
     paddingHorizontal: 16,
     paddingBottom: 20,
@@ -364,63 +366,62 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemRow: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 10,
+    ...ClayCardStyle,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
+    marginBottom: 10,
   },
-  itemRowCorrect: { borderColor: '#10B981' },
-  itemRowIncorrect: { borderColor: '#EF4444' },
-  itemNum: { color: '#F8FAFC', fontSize: 13, fontWeight: '700', width: 36 },
+  itemRowCorrect: { borderColor: '#10B981', borderWidth: 2 },
+  itemRowIncorrect: { borderColor: '#EF4444', borderWidth: 2 },
+  itemNum: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800', width: 38 },
   optionsRow: { flexDirection: 'row', gap: 8 },
   bubbleBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1.5,
-    borderColor: '#475569',
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#F1F5F9',
   },
-  bubbleCorrect: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  bubbleIncorrect: { backgroundColor: '#EF4444', borderColor: '#EF4444' },
-  bubbleText: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
+  bubbleCorrect: { backgroundColor: ClayColors.success, borderColor: ClayColors.success },
+  bubbleIncorrect: { backgroundColor: ClayColors.danger, borderColor: ClayColors.danger },
+  bubbleText: { color: ClayColors.textSecondary, fontSize: 13, fontWeight: '700' },
   statusIndicator: { width: 62, alignItems: 'flex-end', gap: 2 },
   warningLabel: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  flagText: { color: '#F59E0B', fontSize: 10, fontWeight: '600' },
-  confidenceText: { color: '#CBD5E1', fontSize: 9, fontWeight: '700' },
-  correctAnswerText: { color: '#FCA5A5', fontSize: 9, fontWeight: '700' },
+  flagText: { color: '#D97706', fontSize: 10, fontWeight: '700' },
+  confidenceText: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '700' },
+  correctAnswerText: { color: '#DC2626', fontSize: 9, fontWeight: '700' },
   resultIcon: { fontSize: 16, fontWeight: '700' },
   footer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#1E293B',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1.5,
+    borderTopColor: '#E2E8F0',
     gap: 12,
   },
   discardBtn: {
     flex: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 7,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
-  discardText: { color: '#F8FAFC', fontWeight: '600' },
+  discardText: { color: ClayColors.textPrimary, fontWeight: '700' },
   saveBtn: {
+    ...ClayButtonStyle,
     flex: 2,
-    backgroundColor: '#4F46E5',
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

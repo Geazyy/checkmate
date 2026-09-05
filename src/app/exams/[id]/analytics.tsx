@@ -9,6 +9,7 @@ import { useScanStore } from '../../../store/useScanStore';
 import { calculateExamAnalytics } from '../../../services/analytics/itemAnalysis';
 import { generateClassReportPDF } from '../../../services/export/pdfGenerator';
 import { exportExamResultsToExcel } from '../../../services/export/excelExporter';
+import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../../constants/theme';
 
 export default function AnalyticsDashboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -108,7 +109,7 @@ export default function AnalyticsDashboardScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: ClayColors.bg,
   },
   content: {
     padding: 16,
@@ -120,24 +121,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   examTitle: {
-    color: '#F8FAFC',
-    fontSize: 18,
-    fontWeight: '700',
+    color: ClayColors.textPrimary,
+    fontSize: 20,
+    fontWeight: '800',
   },
   examSub: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: ClayColors.textSecondary,
+    fontSize: 13,
     marginTop: 2,
+    fontWeight: '500',
   },
   scanNowBtn: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    ...ClayButtonStyle,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 16,
   },
   scanNowText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   metricsGrid: {
@@ -146,23 +148,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   metricCard: {
+    ...ClayCardStyle,
     flex: 1,
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    padding: 12,
+    padding: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
   },
   metricVal: {
-    color: '#F8FAFC',
-    fontSize: 18,
+    color: ClayColors.textPrimary,
+    fontSize: 20,
     fontWeight: '800',
   },
   metricLbl: {
-    color: '#94A3B8',
-    fontSize: 10,
-    marginTop: 2,
+    color: ClayColors.textSecondary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
   exportBar: {
     flexDirection: 'row',
@@ -171,13 +171,20 @@ const styles = StyleSheet.create({
   },
   exportBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   exportBtnText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
 });

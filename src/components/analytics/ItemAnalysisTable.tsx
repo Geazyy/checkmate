@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { QuestionItemAnalysis } from '../../types';
+import { ClayCardStyle, ClayColors } from '../../constants/theme';
 
 interface ItemAnalysisTableProps {
   items: QuestionItemAnalysis[];
@@ -12,15 +13,15 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ items }) =
       case 'Excellent':
       case 'Easy':
       case 'Moderate':
-        return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981' };
+        return { bg: ClayColors.cardMint, text: '#047857' };
       case 'Good':
       case 'Acceptable':
-        return { bg: 'rgba(6, 182, 212, 0.15)', text: '#06B6D4' };
+        return { bg: ClayColors.cardSky, text: '#0284C7' };
       case 'Poor':
       case 'Hard':
-        return { bg: 'rgba(245, 158, 11, 0.15)', text: '#F59E0B' };
+        return { bg: ClayColors.cardAmber, text: '#D97706' };
       default:
-        return { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444' };
+        return { bg: ClayColors.cardRose, text: '#DC2626' };
     }
   };
 
@@ -69,59 +70,56 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ items }) =
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    ...ClayCardStyle,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
     marginBottom: 20,
   },
   headerTitle: {
-    color: '#F8FAFC',
-    fontSize: 15,
-    fontWeight: '600',
+    color: ClayColors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 14,
   },
   tableHeader: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#E2E8F0',
     paddingBottom: 8,
     marginBottom: 8,
   },
   colHeader: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
+    color: ClayColors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#0F172A',
+    borderBottomColor: '#F1F5F9',
   },
   cellText: {
-    color: '#F8FAFC',
+    color: ClayColors.textPrimary,
     fontSize: 13,
   },
   valText: {
-    color: '#F8FAFC',
+    color: ClayColors.textPrimary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   subText: {
-    color: '#94A3B8',
-    fontSize: 10,
+    color: ClayColors.textMuted,
+    fontSize: 11,
   },
   badge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
   badgeText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

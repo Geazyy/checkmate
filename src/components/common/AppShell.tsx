@@ -1,5 +1,5 @@
 import React, { ReactNode, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { ChevronRight, CircleHelp, ClipboardList, Home, LogOut, ScanLine, Settings, UserRound, Users, X } from 'lucide-react-native';
 import { Href, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,9 +41,12 @@ export function AppShell({ title, children }: AppShellProps) {
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
         key={item.label}
-        style={[sidebar ? styles.sideNavItem : styles.bottomNavItem, active && styles.navItemActive]}
+        style={[
+          sidebar ? styles.sideNavItem : styles.bottomNavItem,
+          active && (sidebar ? styles.sideNavItemActive : styles.bottomNavItemActive),
+        ]}
         onPress={() => router.replace(item.href)}>
-        <Icon size={20} color={active ? '#FFFFFF' : '#94A3B8'} strokeWidth={2} />
+        <Icon size={20} color={active ? '#4F46E5' : '#64748B'} strokeWidth={active ? 2.5 : 2} />
         <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
       </TouchableOpacity>
     );
@@ -55,15 +58,15 @@ export function AppShell({ title, children }: AppShellProps) {
       style={sidebar ? styles.profileButton : styles.bottomNavItem}
       onPress={() => setProfileOpen(true)}>
       <View style={sidebar ? styles.profileAvatar : undefined}>
-        <UserRound size={sidebar ? 18 : 20} color={sidebar ? '#FFFFFF' : '#94A3B8'} />
+        <UserRound size={sidebar ? 18 : 20} color={sidebar ? '#4F46E5' : '#64748B'} />
       </View>
       {sidebar ? (
         <>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName} numberOfLines={1}>{user?.full_name ?? 'Teacher'}</Text>
-            <Text style={styles.profileRole}>Teacher account</Text>
+            <Text style={styles.profileRole}>Offline Workspace</Text>
           </View>
-          <ChevronRight size={16} color="#64748B" />
+          <ChevronRight size={16} color="#94A3B8" />
         </>
       ) : <Text style={styles.navLabel}>Profile</Text>}
     </TouchableOpacity>
@@ -77,13 +80,13 @@ export function AppShell({ title, children }: AppShellProps) {
             <View style={styles.brandMark}><Text style={styles.brandMarkText}>C</Text></View>
             <View>
               <Text style={styles.brand}>CheckMate</Text>
-              <Text style={styles.brandSub}>OMR workspace</Text>
+              <Text style={styles.brandSub}>Offline OMR Scanner</Text>
             </View>
           </View>
           <View style={styles.sideNav}>
             {NAV_ITEMS.slice(0, 2).map((item) => navButton(item, true))}
             <TouchableOpacity style={styles.sideScan} onPress={openScan}>
-              <ScanLine size={20} color="#FFFFFF" />
+              <ScanLine size={20} color="#FFFFFF" strokeWidth={2.4} />
               <Text style={styles.sideScanText}>Scan sheet</Text>
             </TouchableOpacity>
             {NAV_ITEMS.slice(2).map((item) => navButton(item, true))}
@@ -129,10 +132,10 @@ export function AppShell({ title, children }: AppShellProps) {
               <View style={styles.largeAvatar}><UserRound size={24} color="#FFFFFF" /></View>
               <View style={styles.profilePanelCopy}>
                 <Text style={styles.profilePanelName}>{user?.full_name ?? 'Teacher'}</Text>
-                <Text style={styles.profilePanelEmail}>{user?.email ?? 'Account details coming soon'}</Text>
+                <Text style={styles.profilePanelEmail}>{user?.email ?? 'Local Offline Mode'}</Text>
               </View>
               <TouchableOpacity accessibilityLabel="Close profile menu" style={styles.closeButton} onPress={() => setProfileOpen(false)}>
-                <X size={18} color="#94A3B8" />
+                <X size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
             <View style={styles.profileMenuDivider} />
@@ -142,7 +145,7 @@ export function AppShell({ title, children }: AppShellProps) {
               { label: 'Log out', icon: LogOut },
             ].map(({ label, icon: Icon }) => (
               <View key={label} style={styles.profileMenuItem}>
-                <Icon size={18} color={label === 'Log out' ? '#FCA5A5' : '#94A3B8'} />
+                <Icon size={18} color={label === 'Log out' ? '#EF4444' : '#64748B'} />
                 <Text style={[styles.profileMenuLabel, label === 'Log out' && styles.logoutLabel]}>{label}</Text>
                 <Text style={styles.soonLabel}>Soon</Text>
               </View>
@@ -155,49 +158,226 @@ export function AppShell({ title, children }: AppShellProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: '#0F172A' },
+  root: { flex: 1, flexDirection: 'row', backgroundColor: '#F0F4F8' },
   main: { flex: 1, minWidth: 0 },
   content: { flex: 1, paddingBottom: 76 },
   desktopContent: { paddingBottom: 0 },
-  sidebar: { width: 236, backgroundColor: '#111C30', borderRightWidth: 1, borderRightColor: '#263449', padding: 18 },
-  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
-  brandMark: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' },
-  brandMarkText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  brand: { color: '#F8FAFC', fontSize: 17, fontWeight: '800' },
-  brandSub: { color: '#64748B', fontSize: 10, marginTop: 1 },
-  sideNav: { gap: 6 },
-  sideNavItem: { minHeight: 44, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bottomNavItem: { flex: 1, minWidth: 0, height: 50, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 8 },
-  navItemActive: { backgroundColor: '#263449' },
-  navLabel: { color: '#94A3B8', fontSize: 11, fontWeight: '600' },
-  navLabelActive: { color: '#FFFFFF' },
-  sideScan: { minHeight: 46, marginVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#4F46E5', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sidebar: {
+    width: 240,
+    backgroundColor: '#FFFFFF',
+    borderRightWidth: 2,
+    borderRightColor: '#E2E8F0',
+    padding: 18,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '6px 0 16px rgba(160, 175, 195, 0.25)',
+        } as any)
+      : {}),
+  },
+  brandBlock: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 28 },
+  brandMark: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#3730A3',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  brandMarkText: { color: '#FFFFFF', fontSize: 19, fontWeight: '800' },
+  brand: { color: '#0F172A', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  brandSub: { color: '#64748B', fontSize: 10, fontWeight: '600', marginTop: 1 },
+  sideNav: { gap: 8 },
+  sideNavItem: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  sideNavItemActive: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 2, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '3px 3px 8px rgba(160, 175, 195, 0.25), -2px -2px 6px rgba(255, 255, 255, 0.9)',
+        } as any)
+      : {}),
+  },
+  bottomNavItem: {
+    flex: 1,
+    minWidth: 0,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    borderRadius: 14,
+  },
+  bottomNavItemActive: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+  },
+  navLabel: { color: '#64748B', fontSize: 11, fontWeight: '600' },
+  navLabelActive: { color: '#4F46E5', fontWeight: '800' },
+  sideScan: {
+    minHeight: 48,
+    marginVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 4,
+    borderBottomColor: '#3730A3',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   sideScanText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  activeExamBlock: { marginTop: 'auto', padding: 12, backgroundColor: '#0F172A', borderRadius: 8, borderWidth: 1, borderColor: '#263449' },
-  activeExamLabel: { color: '#64748B', fontSize: 9, fontWeight: '700' },
-  activeExamTitle: { color: '#CBD5E1', fontSize: 12, fontWeight: '600', marginTop: 5, lineHeight: 17 },
-  bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 68, paddingTop: 7, paddingHorizontal: 8, backgroundColor: '#111C30', borderTopWidth: 1, borderTopColor: '#334155', flexDirection: 'row', alignItems: 'center', zIndex: 50 },
-  scanTab: { flex: 1, minWidth: 0, height: 56, marginTop: -10, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  scanTabIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#111C30' },
-  scanTabText: { color: '#94A3B8', fontSize: 10, fontWeight: '700' },
-  profileButton: { minHeight: 56, marginTop: 10, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#263449', flexDirection: 'row', alignItems: 'center', gap: 9 },
-  profileAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center' },
+  activeExamBlock: {
+    marginTop: 'auto',
+    padding: 14,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  activeExamLabel: { color: '#4F46E5', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  activeExamTitle: { color: '#0F172A', fontSize: 12, fontWeight: '700', marginTop: 4, lineHeight: 17 },
+  bottomNav: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    minHeight: 64,
+    paddingTop: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 50,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '0 8px 24px rgba(160, 175, 195, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.9)',
+        } as any)
+      : {}),
+  },
+  scanTab: { flex: 1, minWidth: 0, height: 56, marginTop: -14, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  scanTabIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#3730A3',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  scanTabText: { color: '#4F46E5', fontSize: 10, fontWeight: '800' },
+  profileButton: {
+    minHeight: 56,
+    marginTop: 12,
+    paddingHorizontal: 8,
+    borderTopWidth: 1.5,
+    borderTopColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  profileAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   profileCopy: { flex: 1, minWidth: 0 },
-  profileName: { color: '#E2E8F0', fontSize: 11, fontWeight: '700' },
-  profileRole: { color: '#64748B', fontSize: 9, marginTop: 2 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.68)', justifyContent: 'flex-end' },
-  profilePanel: { backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', padding: 16 },
-  profilePanelDesktop: { position: 'absolute', left: 18, bottom: 18, width: 300, borderRadius: 8 },
-  profilePanelMobile: { width: '100%', borderTopLeftRadius: 8, borderTopRightRadius: 8, paddingBottom: 28 },
-  profilePanelHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  largeAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' },
+  profileName: { color: '#0F172A', fontSize: 12, fontWeight: '700' },
+  profileRole: { color: '#64748B', fontSize: 9, fontWeight: '600', marginTop: 1 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
+  profilePanel: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 20,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  profilePanelDesktop: { position: 'absolute', left: 18, bottom: 18, width: 310, borderRadius: 24 },
+  profilePanelMobile: { width: '100%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: 32 },
+  profilePanelHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  largeAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#3730A3',
+  },
   profilePanelCopy: { flex: 1, minWidth: 0 },
-  profilePanelName: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
-  profilePanelEmail: { color: '#94A3B8', fontSize: 10, marginTop: 3 },
-  closeButton: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  profileMenuDivider: { height: 1, backgroundColor: '#334155', marginVertical: 13 },
-  profileMenuItem: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderRadius: 8, opacity: 0.72 },
-  profileMenuLabel: { flex: 1, color: '#CBD5E1', fontSize: 12, fontWeight: '600' },
-  logoutLabel: { color: '#FCA5A5' },
-  soonLabel: { color: '#64748B', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  profilePanelName: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
+  profilePanelEmail: { color: '#64748B', fontSize: 11, marginTop: 2 },
+  closeButton: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  profileMenuDivider: { height: 1.5, backgroundColor: '#E2E8F0', marginVertical: 14 },
+  profileMenuItem: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 6 },
+  profileMenuLabel: { flex: 1, color: '#0F172A', fontSize: 13, fontWeight: '600' },
+  logoutLabel: { color: '#EF4444', fontWeight: '700' },
+  soonLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
 });

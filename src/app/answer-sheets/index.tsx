@@ -36,6 +36,7 @@ import {
 } from '../../services/omr/sheetLayout';
 import { useExamStore } from '../../store/useExamStore';
 import { AnswerKeyItem } from '../../types';
+import { ClayCardStyle, ClayColors } from '../../constants/theme';
 
 const ITEM_PRESETS = [10, 20, 25, 30, 40, 50] as const;
 const FIELD_LABELS: Record<SheetFieldKey, string> = {
@@ -373,14 +374,14 @@ export default function AnswerSheetGeneratorScreen() {
   return (
     <View style={styles.screen}>
       <AppHeader title="Answer Sheet Generator" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={17} color="#CBD5E1" />
-          <Text style={styles.backText}>Exam manager</Text>
+          <ChevronLeft size={18} color="#4F46E5" />
+          <Text style={styles.backText}>Exam Manager</Text>
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sheet layout</Text>
+          <Text style={styles.sectionTitle}>Sheet Layout</Text>
 
           <Text style={styles.label}>Number of questions</Text>
           <OptionGroup
@@ -449,7 +450,7 @@ export default function AnswerSheetGeneratorScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Student information</Text>
+          <Text style={styles.sectionTitle}>Student Information</Text>
           <View style={styles.fieldToggleGrid}>
             {metadataFields.map((key) => (
               <View key={key} style={styles.toggleRow}>
@@ -457,8 +458,8 @@ export default function AnswerSheetGeneratorScreen() {
                 <Switch
                   value={config.fields[key]}
                   onValueChange={(value) => updateField(key, value)}
-                  trackColor={{ false: '#334155', true: '#0891B2' }}
-                  thumbColor="#F8FAFC"
+                  trackColor={{ false: '#CBD5E1', true: '#4F46E5' }}
+                  thumbColor="#FFFFFF"
                 />
               </View>
             ))}
@@ -468,28 +469,28 @@ export default function AnswerSheetGeneratorScreen() {
             <TextInput
               style={styles.textInput}
               placeholder="Test title"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={config.testTitle}
               onChangeText={(value) => updateConfig('testTitle', value)}
             />
             <TextInput
               style={styles.textInput}
               placeholder="Subject / section"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={config.subject}
               onChangeText={(value) => updateConfig('subject', value)}
             />
             <TextInput
               style={styles.textInput}
               placeholder="Teacher"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={config.teacher}
               onChangeText={(value) => updateConfig('teacher', value)}
             />
             <TextInput
               style={styles.textInput}
               placeholder="Sheet / test code"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={config.testCode}
               onChangeText={(value) => updateConfig('testCode', value)}
             />
@@ -503,8 +504,8 @@ export default function AnswerSheetGeneratorScreen() {
             <Switch
               value={config.includeLayoutId}
               onValueChange={(value) => updateConfig('includeLayoutId', value)}
-              trackColor={{ false: '#334155', true: '#0891B2' }}
-              thumbColor="#F8FAFC"
+              trackColor={{ false: '#CBD5E1', true: '#4F46E5' }}
+              thumbColor="#FFFFFF"
             />
           </View>
         </View>
@@ -512,7 +513,7 @@ export default function AnswerSheetGeneratorScreen() {
         <View style={styles.previewSection}>
           <View style={styles.previewHeadingRow}>
             <View>
-              <Text style={styles.sectionTitle}>Print preview</Text>
+              <Text style={styles.sectionTitle}>Print Preview</Text>
               <Text style={styles.previewCaption}>{`${config.paperSize === 'a4' ? 'A4' : 'US Letter'} · ${config.orientation} · ${config.sheetsPerPage} sheet${config.sheetsPerPage === 1 ? '' : 's'}`}</Text>
             </View>
             <View style={[styles.compatibilityBadge, scannerReady ? styles.readyBadge : styles.manualBadge]}>
@@ -539,7 +540,7 @@ export default function AnswerSheetGeneratorScreen() {
 
         <View style={styles.actionRow}>
           <Pressable disabled={fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => setPreviewOpen(true)}>
-            <Eye size={17} color="#E2E8F0" />
+            <Eye size={17} color="#4F46E5" />
             <Text style={styles.secondaryActionText}>Preview</Text>
           </Pressable>
           <Pressable style={styles.keyAction} onPress={openAnswerKeyEditor}>
@@ -547,7 +548,7 @@ export default function AnswerSheetGeneratorScreen() {
             <Text style={styles.primaryActionText}>Answer Key</Text>
           </Pressable>
           <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('download')}>
-            {busyAction === 'download' ? <ActivityIndicator size="small" color="#E2E8F0" /> : <Download size={17} color="#E2E8F0" />}
+            {busyAction === 'download' ? <ActivityIndicator size="small" color="#4F46E5" /> : <Download size={17} color="#4F46E5" />}
             <Text style={styles.secondaryActionText}>Save PDF</Text>
           </Pressable>
           <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.primaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('print')}>
@@ -569,7 +570,7 @@ export default function AnswerSheetGeneratorScreen() {
               <Text style={styles.modalSubtitle}>The PDF uses the same rows, fields, markers, and page proportions.</Text>
             </View>
             <Pressable accessibilityLabel="Close preview" style={styles.iconButton} onPress={() => setPreviewOpen(false)}>
-              <X size={20} color="#F8FAFC" />
+              <X size={20} color="#0F172A" />
             </Pressable>
           </View>
           <View style={styles.modalPreview}><SheetPreview config={config} large /></View>
@@ -586,7 +587,7 @@ export default function AnswerSheetGeneratorScreen() {
               </Text>
             </View>
             <Pressable accessibilityLabel="Close answer key" style={styles.iconButton} onPress={() => setAnswerKeyOpen(false)}>
-              <X size={20} color="#F8FAFC" />
+              <X size={20} color="#0F172A" />
             </Pressable>
           </View>
 
@@ -616,7 +617,7 @@ export default function AnswerSheetGeneratorScreen() {
 
           <View style={styles.keyEditorFooter}>
             <Pressable disabled={keyPdfBusy} style={styles.secondaryAction} onPress={downloadAnswerKey}>
-              {keyPdfBusy ? <ActivityIndicator size="small" color="#E2E8F0" /> : <FileDown size={17} color="#E2E8F0" />}
+              {keyPdfBusy ? <ActivityIndicator size="small" color="#4F46E5" /> : <FileDown size={17} color="#4F46E5" />}
               <Text style={styles.secondaryActionText}>Download Key PDF</Text>
             </Pressable>
             <Pressable style={styles.saveKeyAction} onPress={saveAnswerKey}>
@@ -631,44 +632,50 @@ export default function AnswerSheetGeneratorScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0F172A' },
-  content: { padding: 16, paddingBottom: 36, gap: 14 },
-  backButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  backText: { color: '#CBD5E1', fontSize: 12, fontWeight: '600' },
-  section: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 14 },
-  sectionTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-  label: { color: '#CBD5E1', fontSize: 11, fontWeight: '600', marginTop: 14, marginBottom: 7 },
-  optionGroup: { flexDirection: 'row', borderWidth: 1, borderColor: '#475569', borderRadius: 7, overflow: 'hidden', minHeight: 36 },
-  optionButton: { flex: 1, minWidth: 48, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A', borderRightWidth: 1, borderRightColor: '#334155' },
-  optionButtonActive: { backgroundColor: '#0891B2' },
-  optionText: { color: '#94A3B8', fontSize: 11, fontWeight: '700' },
-  optionTextActive: { color: '#FFFFFF' },
-  customRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  customLabel: { color: '#CBD5E1', fontSize: 11, fontWeight: '600' },
-  customInput: { width: 68, height: 36, borderWidth: 1, borderColor: '#475569', borderRadius: 7, color: '#F8FAFC', backgroundColor: '#0F172A', textAlign: 'center', fontSize: 12 },
-  inputSuffix: { color: '#64748B', fontSize: 10 },
-  settingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  screen: { flex: 1, backgroundColor: '#F0F4F8' },
+  content: { padding: 18, paddingBottom: 60, gap: 16 },
+  backButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
+  backText: { color: '#4F46E5', fontSize: 13, fontWeight: '800' },
+  section: {
+    ...ClayCardStyle,
+    padding: 18,
+  },
+  sectionTitle: { color: '#0F172A', fontSize: 17, fontWeight: '800' },
+  label: { color: '#0F172A', fontSize: 12, fontWeight: '800', marginTop: 14, marginBottom: 8 },
+  optionGroup: { flexDirection: 'row', borderWidth: 1.5, borderColor: '#CBD5E1', borderRadius: 14, overflow: 'hidden', minHeight: 42, backgroundColor: '#EBF0F6' },
+  optionButton: { flex: 1, minWidth: 48, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EBF0F6', borderRightWidth: 1.5, borderRightColor: '#CBD5E1' },
+  optionButtonActive: { backgroundColor: '#4F46E5' },
+  optionText: { color: '#64748B', fontSize: 12, fontWeight: '700' },
+  optionTextActive: { color: '#FFFFFF', fontWeight: '800' },
+  customRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  customLabel: { color: '#0F172A', fontSize: 12, fontWeight: '800' },
+  customInput: { width: 72, height: 40, borderWidth: 1.5, borderColor: '#CBD5E1', borderRadius: 12, color: '#0F172A', backgroundColor: '#EBF0F6', textAlign: 'center', fontSize: 13, fontWeight: '800' },
+  inputSuffix: { color: '#64748B', fontSize: 11, fontWeight: '600' },
+  settingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   settingBlock: { width: '48%', minWidth: 150, flexGrow: 1 },
-  fieldToggleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  toggleRow: { width: '48%', minWidth: 155, flexGrow: 1, height: 43, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, backgroundColor: '#0F172A', borderRadius: 7, borderWidth: 1, borderColor: '#334155' },
-  toggleLabel: { color: '#E2E8F0', fontSize: 11, fontWeight: '600' },
-  textFieldGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  textInput: { width: '48%', minWidth: 155, flexGrow: 1, height: 40, borderWidth: 1, borderColor: '#475569', borderRadius: 7, color: '#F8FAFC', backgroundColor: '#0F172A', paddingHorizontal: 10, fontSize: 11 },
-  toggleRowWide: { marginTop: 12, minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, backgroundColor: '#0F172A', borderRadius: 7, borderWidth: 1, borderColor: '#334155' },
+  fieldToggleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  toggleRow: { width: '48%', minWidth: 155, flexGrow: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: '#EBF0F6', borderRadius: 14, borderWidth: 1.5, borderColor: '#CBD5E1' },
+  toggleLabel: { color: '#0F172A', fontSize: 12, fontWeight: '700' },
+  textFieldGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  textInput: { width: '48%', minWidth: 155, flexGrow: 1, height: 44, borderWidth: 1.5, borderColor: '#CBD5E1', borderRadius: 14, color: '#0F172A', backgroundColor: '#EBF0F6', paddingHorizontal: 12, fontSize: 12, fontWeight: '600' },
+  toggleRowWide: { marginTop: 14, minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: '#EBF0F6', borderRadius: 14, borderWidth: 1.5, borderColor: '#CBD5E1' },
   toggleCopy: { flex: 1, paddingVertical: 8, paddingRight: 8 },
-  toggleHint: { color: '#64748B', fontSize: 9, marginTop: 2 },
-  previewSection: { backgroundColor: '#111827', borderWidth: 1, borderColor: '#334155', borderRadius: 8, paddingVertical: 14 },
-  previewHeadingRow: { paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  previewCaption: { color: '#94A3B8', fontSize: 10, marginTop: 3, textTransform: 'capitalize' },
-  compatibilityBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5 },
-  readyBadge: { backgroundColor: '#065F46' },
-  manualBadge: { backgroundColor: '#854D0E' },
-  compatibilityText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700' },
-  compatibilityNote: { color: '#FDE68A', fontSize: 10, lineHeight: 14, marginHorizontal: 14, marginTop: 8 },
-  fourSheetWarning: { color: '#FDE68A', fontSize: 10, lineHeight: 14, marginHorizontal: 14, marginTop: 8 },
-  previewScroller: { padding: 14, alignItems: 'flex-start' },
-  paperPreview: { backgroundColor: '#FFFFFF', padding: 10, flexDirection: 'row', borderWidth: 1, borderColor: '#94A3B8', elevation: 3 },
-  miniSheet: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#111827', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
+  toggleHint: { color: '#64748B', fontSize: 10, marginTop: 2, fontWeight: '600' },
+  previewSection: {
+    ...ClayCardStyle,
+    paddingVertical: 18,
+  },
+  previewHeadingRow: { paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  previewCaption: { color: '#64748B', fontSize: 11, marginTop: 3, textTransform: 'capitalize', fontWeight: '600' },
+  compatibilityBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  readyBadge: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  manualBadge: { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' },
+  compatibilityText: { color: '#047857', fontSize: 10, fontWeight: '800' },
+  compatibilityNote: { color: '#B45309', fontSize: 11, lineHeight: 16, marginHorizontal: 18, marginTop: 10, fontWeight: '600' },
+  fourSheetWarning: { color: '#B45309', fontSize: 11, lineHeight: 16, marginHorizontal: 18, marginTop: 10, fontWeight: '600' },
+  previewScroller: { padding: 18, alignItems: 'flex-start' },
+  paperPreview: { backgroundColor: '#FFFFFF', padding: 12, flexDirection: 'row', borderWidth: 2, borderColor: '#CBD5E1', elevation: 4 },
+  miniSheet: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#000000', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
   previewCutLine: { width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#64748B', marginHorizontal: 8 },
   previewSheetSlot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   previewCutLineFourVertical: { position: 'absolute', top: 10, bottom: 10, width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#64748B', zIndex: 3 },
@@ -695,36 +702,90 @@ const styles = StyleSheet.create({
   previewBubbleCompact: { width: 8, height: 8, borderRadius: 4 },
   previewBubbleText: { color: '#000000', fontSize: 4, fontWeight: '700' },
   previewLayoutId: { position: 'absolute', bottom: 2, left: 12, right: 12, color: '#000000', fontSize: 4 },
-  unsupportedPreview: { minHeight: 150, margin: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#92400E', borderRadius: 7, backgroundColor: '#1C1917', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  unsupportedPreviewTitle: { color: '#FDE68A', fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  unsupportedPreviewText: { color: '#D6D3D1', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 5 },
-  feedback: { borderRadius: 7, borderWidth: 1, padding: 10 },
-  feedbackSuccess: { backgroundColor: '#064E3B', borderColor: '#10B981' },
-  feedbackError: { backgroundColor: '#7F1D1D', borderColor: '#EF4444' },
-  feedbackText: { color: '#FFFFFF', fontSize: 11, lineHeight: 16 },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  secondaryAction: { minWidth: 120, flex: 1, height: 42, borderRadius: 7, borderWidth: 1, borderColor: '#475569', backgroundColor: '#1E293B', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
-  secondaryActionText: { color: '#E2E8F0', fontSize: 11, fontWeight: '700' },
-  keyAction: { minWidth: 120, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#7C3AED', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
-  primaryAction: { minWidth: 110, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#4F46E5', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
-  shareAction: { minWidth: 120, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#0891B2', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
-  primaryActionText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  disabledAction: { opacity: 0.4 },
-  modalScreen: { flex: 1, backgroundColor: '#0F172A' },
-  modalHeader: { minHeight: 78, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#334155' },
+  unsupportedPreview: { minHeight: 150, margin: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#F59E0B', borderRadius: 16, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  unsupportedPreviewTitle: { color: '#B45309', fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  unsupportedPreviewText: { color: '#78350F', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 6 },
+  feedback: { borderRadius: 16, borderWidth: 1.5, padding: 14 },
+  feedbackSuccess: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
+  feedbackError: { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+  feedbackText: { color: '#0F172A', fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  secondaryAction: {
+    minWidth: 120,
+    flex: 1,
+    height: 46,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#EEF2FF',
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justify: 'center',
+  },
+  secondaryActionText: { color: '#4F46E5', fontSize: 12, fontWeight: '800' },
+  keyAction: {
+    minWidth: 120,
+    flex: 1,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#8B5CF6',
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justify: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: '#6D28D9',
+  },
+  primaryAction: {
+    minWidth: 110,
+    flex: 1,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justify: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: '#3730A3',
+  },
+  shareAction: {
+    minWidth: 120,
+    flex: 1,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#06B6D4',
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justify: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: '#0891B2',
+  },
+  primaryActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  disabledAction: { opacity: 0.45 },
+  modalScreen: { flex: 1, backgroundColor: '#F0F4F8' },
+  modalHeader: { minHeight: 78, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   modalHeaderCopy: { flex: 1, paddingRight: 12 },
-  modalTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700' },
-  modalSubtitle: { color: '#94A3B8', fontSize: 10, marginTop: 3, maxWidth: 430 },
-  iconButton: { width: 38, height: 38, borderRadius: 7, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
+  modalTitle: { color: '#0F172A', fontSize: 18, fontWeight: '800' },
+  modalSubtitle: { color: '#64748B', fontSize: 11, marginTop: 3, maxWidth: 430, fontWeight: '600' },
+  iconButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   modalPreview: { flex: 1, justifyContent: 'center' },
-  keyEditorContent: { padding: 14, paddingBottom: 24 },
-  keyEditorRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#0F172A', backgroundColor: '#1E293B', paddingHorizontal: 14 },
-  keyEditorNumber: { color: '#F8FAFC', fontSize: 13, fontWeight: '800', width: 42 },
-  keyEditorOptions: { flexDirection: 'row', gap: 8 },
-  keyEditorOption: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#475569', backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
+  keyEditorContent: { padding: 18, paddingBottom: 30, gap: 8 },
+  keyEditorRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0', paddingHorizontal: 16 },
+  keyEditorNumber: { color: '#0F172A', fontSize: 14, fontWeight: '800', width: 44 },
+  keyEditorOptions: { flexDirection: 'row', gap: 10 },
+  keyEditorOption: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#CBD5E1', backgroundColor: '#EBF0F6', alignItems: 'center', justifyContent: 'center' },
   keyEditorOptionActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  keyEditorOptionText: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
+  keyEditorOptionText: { color: '#64748B', fontSize: 13, fontWeight: '700' },
   keyEditorOptionTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  keyEditorFooter: { padding: 14, borderTopWidth: 1, borderTopColor: '#334155', backgroundColor: '#111827', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  saveKeyAction: { minWidth: 150, flex: 1, height: 42, borderRadius: 7, backgroundColor: '#10B981', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  keyEditorFooter: { padding: 18, borderTopWidth: 2, borderTopColor: '#E2E8F0', backgroundColor: '#FFFFFF', flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  saveKeyAction: { minWidth: 150, flex: 1, height: 46, borderRadius: 16, backgroundColor: '#10B981', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderTopWidth: 2, borderTopColor: 'rgba(255, 255, 255, 0.4)', borderBottomWidth: 3.5, borderBottomColor: '#047857' },
 });

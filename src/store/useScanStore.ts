@@ -9,7 +9,6 @@ interface ScanState {
   torchEnabled: boolean;
   lastScannedResult: ScanResult | null;
   scannedResults: ScanResult[];
-  pendingSyncCount: number;
   setIsScanning: (isScanning: boolean) => void;
   setIsAligned: (isAligned: boolean) => void;
   setTorchEnabled: (torchEnabled: boolean) => void;
@@ -19,7 +18,6 @@ interface ScanState {
   clearLastScannedResult: () => void;
   updateResultItemOption: (scanId: string, questionNumber: number, options: string[]) => void;
   removeExamResults: (examId: string) => void;
-  setPendingSyncCount: (count: number) => void;
 }
 
 // Initial Mock Scans for demonstration
@@ -82,7 +80,6 @@ export const useScanStore = create<ScanState>()(persist((set) => ({
   torchEnabled: false,
   lastScannedResult: null,
   scannedResults: MOCK_SCANS,
-  pendingSyncCount: 0,
   setIsScanning: (isScanning) => set({ isScanning }),
   setIsAligned: (isAligned) => set({ isAligned }),
   setTorchEnabled: (torchEnabled) => set({ torchEnabled }),
@@ -127,9 +124,8 @@ export const useScanStore = create<ScanState>()(persist((set) => ({
       scannedResults: state.scannedResults.filter((scan) => scan.exam_id !== examId),
       lastScannedResult: state.lastScannedResult?.exam_id === examId ? null : state.lastScannedResult,
     })),
-  setPendingSyncCount: (pendingSyncCount) => set({ pendingSyncCount }),
 }), {
   name: 'checkmate-scans-v1',
   storage: createJSONStorage(() => appStorage),
-  partialize: (state) => ({ scannedResults: state.scannedResults, pendingSyncCount: state.pendingSyncCount }),
+  partialize: (state) => ({ scannedResults: state.scannedResults }),
 }));

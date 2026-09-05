@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Plus, Search, UserRound, X } from 'lucide-react-native';
 import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
 import { ClassSection, Student } from '../../types';
+import { ClayCardStyle, ClayColors } from '../../constants/theme';
 
 const INITIAL_STUDENTS: Student[] = [
   {
@@ -128,11 +129,13 @@ export default function RosterScreen() {
 
   return (
     <AppShell title="Classes">
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <View style={styles.headingCopy}>
-            <Text style={styles.eyebrow}>CLASS MANAGEMENT</Text>
-            <Text style={styles.sectionTitle}>Student directory</Text>
+            <View style={styles.eyebrowChip}>
+              <Text style={styles.eyebrow}>CLASS MANAGEMENT</Text>
+            </View>
+            <Text style={styles.sectionTitle}>Student Directory</Text>
             <Text style={styles.sectionSub}>Choose a class, then manage its roster.</Text>
           </View>
         </View>
@@ -145,8 +148,8 @@ export default function RosterScreen() {
               setIsAdding(false);
               setClassError('');
             }}>
-            {isAddingClass ? <X size={17} color="#CBD5E1" /> : <Plus size={17} color="#CBD5E1" />}
-            <Text style={styles.secondaryBtnText}>{isAddingClass ? 'Close' : 'Add class'}</Text>
+            {isAddingClass ? <X size={17} color="#4F46E5" /> : <Plus size={17} color="#4F46E5" strokeWidth={2.4} />}
+            <Text style={styles.secondaryBtnText}>{isAddingClass ? 'Close' : 'Add Class'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.addBtn, !selectedClassId && styles.disabledBtn]}
@@ -155,20 +158,20 @@ export default function RosterScreen() {
               setIsAdding((current) => !current);
               setIsAddingClass(false);
             }}>
-            {isAdding ? <X size={17} color="#FFFFFF" /> : <Plus size={17} color="#FFFFFF" />}
-            <Text style={styles.addBtnText}>{isAdding ? 'Close' : 'Add student'}</Text>
+            {isAdding ? <X size={17} color="#FFFFFF" /> : <Plus size={17} color="#FFFFFF" strokeWidth={2.4} />}
+            <Text style={styles.addBtnText}>{isAdding ? 'Close' : 'Add Student'}</Text>
           </TouchableOpacity>
         </View>
 
         {isAddingClass && (
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Create class</Text>
+            <Text style={styles.formTitle}>Create Class Section</Text>
             <Text style={styles.formSub}>Add the class details, then build its roster.</Text>
-            <Text style={styles.inputLabel}>Class name</Text>
+            <Text style={styles.inputLabel}>Class Name</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. Chemistry 201 - Sec B"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={className}
               onChangeText={(value) => {
                 setClassName(value);
@@ -179,36 +182,36 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Chemistry"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={classSubject}
               onChangeText={(value) => {
                 setClassSubject(value);
                 setClassError('');
               }}
             />
-            <Text style={styles.inputLabel}>Academic year</Text>
+            <Text style={styles.inputLabel}>Academic Year</Text>
             <TextInput
               style={styles.input}
               placeholder="2026-2027"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={academicYear}
               onChangeText={setAcademicYear}
             />
             {!!classError && <Text style={styles.formError}>{classError}</Text>}
             <TouchableOpacity style={styles.submitBtn} onPress={handleAddClass}>
-              <Text style={styles.submitText}>Create class</Text>
+              <Text style={styles.submitText}>Save Class Section</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={styles.classSelectorCard}>
-          <Text style={styles.classSelectorTitle}>Class section</Text>
+          <Text style={styles.classSelectorTitle}>ACTIVE CLASS SECTION</Text>
           <TouchableOpacity
             style={[styles.classPickerButton, isClassPickerOpen && styles.classPickerButtonOpen]}
             onPress={() => setIsClassPickerOpen((current) => !current)}>
             <View style={styles.classPickerCopy}>
               <Text style={styles.classPickerValue} numberOfLines={1}>
-                {selectedClass?.name ?? 'All classes'}
+                {selectedClass?.name ?? 'All Classes'}
               </Text>
               <Text style={styles.classPickerMeta} numberOfLines={1}>
                 {selectedClass
@@ -217,8 +220,8 @@ export default function RosterScreen() {
               </Text>
             </View>
             {isClassPickerOpen
-              ? <ChevronUp size={20} color="#94A3B8" />
-              : <ChevronDown size={20} color="#94A3B8" />}
+              ? <ChevronUp size={20} color="#4F46E5" />
+              : <ChevronDown size={20} color="#4F46E5" />}
           </TouchableOpacity>
 
           {isClassPickerOpen && (
@@ -228,7 +231,7 @@ export default function RosterScreen() {
                 <TextInput
                   style={styles.classSearchInput}
                   placeholder="Search class or subject"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor="#94A3B8"
                   value={classQuery}
                   onChangeText={setClassQuery}
                   autoFocus
@@ -243,10 +246,10 @@ export default function RosterScreen() {
                 style={[styles.classOption, !selectedClassId && styles.classOptionActive]}
                 onPress={() => chooseClass(null)}>
                 <View style={styles.classOptionCopy}>
-                  <Text style={styles.classOptionName}>All classes</Text>
+                  <Text style={styles.classOptionName}>All Classes</Text>
                   <Text style={styles.classOptionMeta}>{classes.length} class sections</Text>
                 </View>
-                {!selectedClassId && <Check size={18} color="#22D3EE" />}
+                {!selectedClassId && <Check size={18} color="#4F46E5" />}
               </TouchableOpacity>
               {filteredClasses.map((cls) => (
                 <TouchableOpacity
@@ -259,7 +262,7 @@ export default function RosterScreen() {
                       {cls.subject} • {(studentsByClassId[cls.id] ?? []).length} students
                     </Text>
                   </View>
-                  {selectedClassId === cls.id && <Check size={18} color="#22D3EE" />}
+                  {selectedClassId === cls.id && <Check size={18} color="#4F46E5" />}
                 </TouchableOpacity>
               ))}
               {filteredClasses.length === 0 && (
@@ -276,26 +279,29 @@ export default function RosterScreen() {
         {/* Add Student Card Form */}
         {isAdding && (
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Add New Student to Roster</Text>
+            <Text style={styles.formTitle}>Add Student to Roster</Text>
             <Text style={styles.formSub}>Adding to {selectedClass?.name}.</Text>
+            <Text style={styles.inputLabel}>Student ID Number</Text>
             <TextInput
               style={styles.input}
-              placeholder="Student ID # (e.g. 2026-045)"
-              placeholderTextColor="#64748B"
+              placeholder="e.g. 2026-045"
+              placeholderTextColor="#94A3B8"
               value={studentNum}
               onChangeText={setStudentNum}
             />
+            <Text style={styles.inputLabel}>First Name</Text>
             <TextInput
               style={styles.input}
               placeholder="First Name"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={firstName}
               onChangeText={setFirstName}
             />
+            <Text style={styles.inputLabel}>Last Name</Text>
             <TextInput
               style={styles.input}
               placeholder="Last Name"
-              placeholderTextColor="#64748B"
+              placeholderTextColor="#94A3B8"
               value={lastName}
               onChangeText={setLastName}
             />
@@ -312,14 +318,14 @@ export default function RosterScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search student name or ID"
-            placeholderTextColor="#64748B"
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
         <View style={styles.rosterHeader}>
-          <Text style={styles.rosterTitle}>Students</Text>
+          <Text style={styles.rosterTitle}>Students Roster</Text>
           <Text style={styles.rosterCount}>{filteredStudents.length} shown</Text>
         </View>
 
@@ -348,7 +354,7 @@ export default function RosterScreen() {
 
         {filteredStudents.length === 0 && (
           <View style={styles.emptyState}>
-            <Search size={24} color="#64748B" />
+            <Search size={28} color="#94A3B8" />
             <Text style={styles.emptyTitle}>No students found</Text>
             <Text style={styles.emptyText}>Try another name or student ID.</Text>
           </View>
@@ -359,150 +365,222 @@ export default function RosterScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0F172A' },
-  content: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingBottom: 30 },
+  content: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   headingCopy: { flex: 1 },
-  eyebrow: { color: '#22D3EE', fontSize: 10, fontWeight: '800' },
-  sectionTitle: { color: '#F8FAFC', fontSize: 23, fontWeight: '800', marginTop: 4 },
-  sectionSub: { color: '#94A3B8', fontSize: 11, marginTop: 5 },
-  pageActions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  secondaryBtn: { minHeight: 42, flex: 1, borderWidth: 1, borderColor: '#475569', borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
-  secondaryBtnText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
-  addBtn: { minHeight: 42, flex: 1, justifyContent: 'center', backgroundColor: '#4F46E5', paddingHorizontal: 14, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  addBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
-  disabledBtn: { opacity: 0.45 },
-  classSelectorCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 16,
+  eyebrowChip: {
+    backgroundColor: '#EEF2FF',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#C7D2FE',
+    marginBottom: 6,
   },
-  classSelectorTitle: { color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 10 },
+  eyebrow: { color: '#4F46E5', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  sectionTitle: { color: '#0F172A', fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
+  sectionSub: { color: '#64748B', fontSize: 13, marginTop: 4 },
+  pageActions: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  secondaryBtn: {
+    minHeight: 46,
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  secondaryBtnText: { color: '#4F46E5', fontSize: 13, fontWeight: '800' },
+  addBtn: {
+    minHeight: 46,
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: '#3730A3',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  addBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  disabledBtn: { opacity: 0.5 },
+  classSelectorCard: {
+    ...ClayCardStyle,
+    padding: 18,
+    marginBottom: 20,
+  },
+  classSelectorTitle: { color: '#4F46E5', fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
   classPickerButton: {
-    minHeight: 58,
-    backgroundColor: '#0F172A',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
+    minHeight: 60,
+    backgroundColor: '#EBF0F6',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  classPickerButtonOpen: { borderColor: '#6366F1' },
+  classPickerButtonOpen: { borderColor: '#4F46E5', backgroundColor: '#EEF2FF' },
   classPickerCopy: { flex: 1, minWidth: 0 },
-  classPickerValue: { color: '#F8FAFC', fontSize: 13, fontWeight: '800' },
-  classPickerMeta: { color: '#94A3B8', fontSize: 10, marginTop: 3 },
+  classPickerValue: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
+  classPickerMeta: { color: '#64748B', fontSize: 11, fontWeight: '600', marginTop: 2 },
   classPickerPanel: {
-    marginTop: 8,
-    backgroundColor: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    padding: 8,
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 16,
+    padding: 10,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   classSearchBar: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 6,
-  },
-  classSearchInput: { flex: 1, color: '#F8FAFC', fontSize: 12, paddingVertical: 8 },
-  classOptionsList: { maxHeight: 238 },
-  classOption: {
-    minHeight: 52,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 6,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  classOptionActive: { backgroundColor: 'rgba(79, 70, 229, 0.18)' },
-  classOptionCopy: { flex: 1, minWidth: 0 },
-  classOptionName: { color: '#E2E8F0', fontSize: 12, fontWeight: '700' },
-  classOptionMeta: { color: '#64748B', fontSize: 10, marginTop: 3 },
-  noClassResults: { paddingVertical: 24, alignItems: 'center' },
-  noClassResultsText: { color: '#64748B', fontSize: 11 },
-  searchBar: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
     paddingHorizontal: 12,
-    minHeight: 46,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
+    borderRadius: 14,
+    backgroundColor: '#EBF0F6',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    marginBottom: 8,
+  },
+  classSearchInput: { flex: 1, color: '#0F172A', fontSize: 13, paddingVertical: 8, fontWeight: '600' },
+  classOptionsList: { maxHeight: 238 },
+  classOption: {
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
+    marginBottom: 4,
   },
-  searchInput: { flex: 1, color: '#F8FAFC', fontSize: 13, paddingVertical: 10 },
-  rosterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
-  rosterTitle: { color: '#E2E8F0', fontSize: 13, fontWeight: '800' },
-  rosterCount: { color: '#64748B', fontSize: 10, fontWeight: '600' },
+  classOptionActive: { backgroundColor: '#EEF2FF' },
+  classOptionCopy: { flex: 1, minWidth: 0 },
+  classOptionName: { color: '#0F172A', fontSize: 13, fontWeight: '800' },
+  classOptionMeta: { color: '#64748B', fontSize: 11, marginTop: 2, fontWeight: '600' },
+  noClassResults: { paddingVertical: 24, alignItems: 'center' },
+  noClassResultsText: { color: '#64748B', fontSize: 12, fontWeight: '600' },
+  searchBar: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    minHeight: 50,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 3, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '4px 4px 12px rgba(160, 175, 195, 0.3), -3px -3px 10px rgba(255, 255, 255, 0.9)',
+        } as any)
+      : {}),
+  },
+  searchInput: { flex: 1, color: '#0F172A', fontSize: 13, paddingVertical: 10, fontWeight: '600' },
+  rosterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  rosterTitle: { color: '#0F172A', fontSize: 16, fontWeight: '800' },
+  rosterCount: { color: '#64748B', fontSize: 12, fontWeight: '700' },
   formCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
+    ...ClayCardStyle,
+    padding: 20,
+    marginBottom: 20,
   },
-  formTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginBottom: 12 },
-  formSub: { color: '#94A3B8', fontSize: 11, marginTop: -6, marginBottom: 12 },
-  inputLabel: { color: '#CBD5E1', fontSize: 11, fontWeight: '700', marginBottom: 6 },
+  formTitle: { color: '#0F172A', fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  formSub: { color: '#64748B', fontSize: 12, marginBottom: 14 },
+  inputLabel: { color: '#0F172A', fontSize: 12, fontWeight: '800', marginBottom: 6 },
   input: {
-    backgroundColor: '#0F172A',
-    borderRadius: 10,
-    padding: 12,
-    color: '#F8FAFC',
+    backgroundColor: '#EBF0F6',
+    borderRadius: 16,
+    padding: 14,
+    color: '#0F172A',
     fontSize: 13,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    fontWeight: '600',
   },
-  submitBtn: { backgroundColor: '#10B981', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  submitText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  formError: { color: '#FCA5A5', fontSize: 11, fontWeight: '700', marginBottom: 10 },
+  submitBtn: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: '#047857',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+    marginTop: 4,
+  },
+  submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  formError: { color: '#EF4444', fontSize: 12, fontWeight: '700', marginBottom: 10 },
   studentCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
+    ...ClayCardStyle,
+    padding: 14,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
   },
   avatarPill: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4F46E5',
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  avatarText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  avatarText: { color: '#4F46E5', fontSize: 14, fontWeight: '800' },
   studentDetails: { flex: 1 },
-  studentName: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
-  studentSub: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyTitle: { color: '#CBD5E1', fontSize: 13, fontWeight: '800', marginTop: 10 },
-  emptyText: { color: '#64748B', fontSize: 10, marginTop: 4 },
+  studentName: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
+  studentSub: { color: '#64748B', fontSize: 12, marginTop: 2, fontWeight: '600' },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+  },
+  emptyTitle: { color: '#0F172A', fontSize: 15, fontWeight: '800', marginTop: 12 },
+  emptyText: { color: '#64748B', fontSize: 12, marginTop: 4 },
 });

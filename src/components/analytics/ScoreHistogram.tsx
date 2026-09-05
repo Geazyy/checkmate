@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { ClayCardStyle, ClayColors } from '../../constants/theme';
 
 interface HistogramProps {
   data: { range: string; count: number }[];
@@ -36,17 +37,14 @@ export const ScoreHistogram: React.FC<HistogramProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    ...ClayCardStyle,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
   },
   title: {
-    color: '#F8FAFC',
-    fontSize: 15,
-    fontWeight: '600',
+    color: ClayColors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 16,
   },
   chartArea: {
@@ -61,27 +59,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countLabel: {
-    color: '#06B6D4',
-    fontSize: 11,
-    fontWeight: '700',
+    color: ClayColors.primary,
+    fontSize: 12,
+    fontWeight: '800',
     marginBottom: 4,
   },
   barTrack: {
-    width: 24,
+    width: 26,
     height: 90,
-    backgroundColor: '#0F172A',
-    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
     justifyContent: 'flex-end',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
   barFill: {
     width: '100%',
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     borderRadius: 6,
   },
   rangeLabel: {
-    color: '#94A3B8',
-    fontSize: 10,
+    color: ClayColors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
     marginTop: 6,
   },
 });

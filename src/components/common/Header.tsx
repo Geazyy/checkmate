@@ -1,50 +1,28 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useScanStore } from '../../store/useScanStore';
-import { syncPendingScansToCloud } from '../../services/database/localDb';
+import { ClayCardStyle, ClayColors } from '../../constants/theme';
+import { CheckCircle2 } from 'lucide-react-native';
 
 export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ title = 'CheckMate', compact = false }) => {
   const insets = useSafeAreaInsets();
-  const { user, isOnline } = useAuthStore();
-  const { pendingSyncCount, setPendingSyncCount } = useScanStore();
-
-  const handleSync = async () => {
-    if (pendingSyncCount === 0) return;
-    const { syncedCount } = await syncPendingScansToCloud();
-    setPendingSyncCount(Math.max(0, pendingSyncCount - syncedCount));
-  };
+  const { user } = useAuthStore();
 
   return (
-    <View style={[styles.container, { paddingTop: compact ? 18 : Math.max(16, insets.top + 10) }]}>
-      <View>
-        <Text style={styles.brandTitle}>{title}</Text>
-        {user && <Text style={styles.welcomeText}>Hello, {user.full_name}</Text>}
+    <View style={[styles.container, { paddingTop: compact ? 16 : Math.max(16, insets.top + 8) }]}>
+      <View style={styles.titleGroup}>
+        <View style={styles.brandBadge}>
+          <Text style={styles.brandTitle}>{title}</Text>
+        </View>
+        {user && <Text style={styles.welcomeText}>Welcome back, {user.full_name}</Text>}
       </View>
 
-      <View style={styles.statusRow}>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
-          ]}>
-          <View
-            style={[
-              styles.dot,
-              { backgroundColor: isOnline ? '#10B981' : '#EF4444' },
-            ]}
-          />
-          <Text style={[styles.badgeText, { color: isOnline ? '#10B981' : '#EF4444' }]}>
-            {isOnline ? 'Online' : 'Offline'}
-          </Text>
+      <View style={styles.rightGroup}>
+        <View style={styles.offlineChip}>
+          <CheckCircle2 size={13} color="#10B981" />
+          <Text style={styles.offlineChipText}>Local Mode</Text>
         </View>
-
-        {pendingSyncCount > 0 && (
-          <TouchableOpacity onPress={handleSync} style={styles.syncBtn}>
-            <Text style={styles.syncText}>Sync ({pendingSyncCount})</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
@@ -53,56 +31,76 @@ export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ tit
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: '#0F172A',
+    paddingBottom: 16,
+    backgroundColor: ClayColors.bg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+  },
+  titleGroup: {
+    flexDirection: 'column',
+    gap: 3,
+  },
+  brandBadge: {
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '4px 4px 10px rgba(160, 175, 195, 0.35), -3px -3px 8px rgba(255, 255, 255, 0.9)',
+        } as any)
+      : {}),
   },
   brandTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 0,
+    color: ClayColors.primary,
+    letterSpacing: -0.3,
   },
   welcomeText: {
     fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  badgeText: {
-    fontSize: 11,
     fontWeight: '600',
+    color: ClayColors.textMuted,
+    marginTop: 2,
+    paddingLeft: 2,
   },
-  syncBtn: {
-    backgroundColor: '#4F46E5',
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  offlineChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    gap: 6,
+    shadowColor: '#8CA0BA',
+    shadowOffset: { width: 2, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+    ...(Platform.OS === 'web'
+      ? ({
+          boxShadow: '3px 3px 6px rgba(160, 175, 195, 0.25), -2px -2px 6px rgba(255, 255, 255, 0.9)',
+        } as any)
+      : {}),
   },
-  syncText: {
-    color: '#FFFFFF',
+  offlineChipText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#047857',
   },
 });
