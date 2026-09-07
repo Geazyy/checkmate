@@ -6,8 +6,11 @@ import { decode } from 'jpeg-js';
 import { AnswerDetectionStatus, BubbleAnalysisResult, OptionCount, QuestionCount } from '../../types';
 import { OPTION_LETTERS } from './scannerEngine';
 import { OMR_CANONICAL_SIZE, OMR_ROWS_PER_COLUMN, getScannerSheetLayout } from './sheetLayout';
+import { createScanTimer, scanStage, ScanProgress, ScanTimings, yieldScanWork } from './scanTiming';
 
 const ANALYSIS_WIDTH = 900;
+const ANALYSIS_MAX_HEIGHT = 1600;
+const SCAN_WORK_SLICE_MS = 32;
 const NORMALIZED_WIDTH = OMR_CANONICAL_SIZE.width;
 const NORMALIZED_HEIGHT = OMR_CANONICAL_SIZE.height;
 
@@ -21,6 +24,9 @@ export const IMAGE_OMR_CONFIG = {
   confidentMarkScore: 0.38,
   multipleMarkScore: 0.3,
   minimumSeparation: 0.1,
+  minimumGeometryConfidence: 0.82,
+  maximumBubbleSizeVariation: 0.45,
+  maximumPrintedBaseline: 0.8,
 } as const;
 
 type GrayImage = { data: Uint8Array; width: number; height: number };
@@ -35,6 +41,8 @@ type BubbleGrid = {
 };
 
 export interface OmrImageAnalysis {
+  timings: ScanTimings;
+  originalImageUri: string;
   results: BubbleAnalysisResult[];
   previewImageUri: string;
   canonicalImageUri?: string;
@@ -62,22 +70,32 @@ async function readImageBytes(uri: string) {
   return new File(uri).bytes();
 }
 
-async function loadSmallGrayscaleImage(uri: string): Promise<GrayImage & { uri: string }> {
-  const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof createScanTimer>, preserveOrientation = false): Promise<GrayImage & { uri: string }> {
+  const dimensions = await timer.measure('loadImageMs', () => new Promise<{ width: number; height: number }>((resolve, reject) => {
     Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
-  });
+  }));
   const context = ImageManipulator.manipulate(uri);
-  if (dimensions.width > dimensions.height) context.rotate(90);
-  context.resize({ width: ANALYSIS_WIDTH });
-  const rendered = await context.renderAsync();
-  const resized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.92 });
-  const decoded = decode(await readImageBytes(resized.uri), {
+  // Expo normalizes EXIF when rendering. Rotation and resize are one native job.
+  if (!preserveOrientation && dimensions.width > dimensions.height) context.rotate(90);
+  const rotates = !preserveOrientation && dimensions.width > dimensions.height;
+  const aspect = rotates ? dimensions.height / dimensions.width : dimensions.width / dimensions.height;
+  context.resize({ width: Math.min(ANALYSIS_WIDTH, Math.round(ANALYSIS_MAX_HEIGHT * aspect)) });
+  const resized = await timer.measure('orientationAndResizeMs', async () => {
+    try {
+      const rendered = await context.renderAsync();
+      try { return await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.92 }); }
+      finally { rendered.release(); }
+    } finally { context.release(); }
+  });
+  const bytes = await timer.measure('readImageBytesMs', () => readImageBytes(resized.uri));
+  const decoded = await timer.measure('decodeImageMs', () => decode(bytes, {
     useTArray: true,
     formatAsRGBA: true,
     tolerantDecoding: true,
     maxResolutionInMP: 3,
     maxMemoryUsageInMB: 96,
-  });
+  }));
+  return timer.measure('grayscaleMs', () => {
   const gray = new Uint8Array(decoded.width * decoded.height);
 
   for (let pixel = 0, rgba = 0; pixel < gray.length; pixel++, rgba += 4) {
@@ -89,13 +107,16 @@ async function loadSmallGrayscaleImage(uri: string): Promise<GrayImage & { uri: 
   }
 
   return { data: gray, width: decoded.width, height: decoded.height, uri: resized.uri };
+  });
 }
 
-function normalizeLighting(image: GrayImage): GrayImage {
+async function normalizeLighting(image: GrayImage, signal?: AbortSignal): Promise<GrayImage> {
+  let lastYield = performance.now();
   const { data, width, height } = image;
   const stride = width + 1;
-  const integral = new Float64Array(stride * (height + 1));
+  const integral = new Uint32Array(stride * (height + 1));
   for (let y = 1; y <= height; y++) {
+    if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     let rowSum = 0;
     for (let x = 1; x <= width; x++) {
       rowSum += data[(y - 1) * width + x - 1];
@@ -106,23 +127,28 @@ function normalizeLighting(image: GrayImage): GrayImage {
   const output = new Uint8Array(data.length);
   const radius = IMAGE_OMR_CONFIG.localContrastRadius;
   for (let y = 0; y < height; y++) {
+    if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     const top = Math.max(0, y - radius);
     const bottom = Math.min(height - 1, y + radius);
+    const lowerRow = (bottom + 1) * stride;
+    const upperRow = top * stride;
+    const areaHeight = bottom - top + 1;
+    const imageRow = y * width;
     for (let x = 0; x < width; x++) {
       const left = Math.max(0, x - radius);
       const right = Math.min(width - 1, x + radius);
-      const area = (right - left + 1) * (bottom - top + 1);
-      const sum = integral[(bottom + 1) * stride + right + 1]
-        - integral[top * stride + right + 1]
-        - integral[(bottom + 1) * stride + left]
-        + integral[top * stride + left];
+      const area = (right - left + 1) * areaHeight;
+      const sum = integral[lowerRow + right + 1]
+        - integral[upperRow + right + 1]
+        - integral[lowerRow + left]
+        + integral[upperRow + left];
       const localMean = sum / area;
-      output[y * width + x] = Math.max(
+      output[imageRow + x] = Math.max(
         0,
         Math.min(
           255,
           IMAGE_OMR_CONFIG.normalizedPaperLevel
-            + (data[y * width + x] - localMean) * IMAGE_OMR_CONFIG.localContrastStrength
+            + (data[imageRow + x] - localMean) * IMAGE_OMR_CONFIG.localContrastStrength
         )
       );
     }
@@ -130,11 +156,13 @@ function normalizeLighting(image: GrayImage): GrayImage {
   return { data: output, width, height };
 }
 
-function findComponents(
+async function findComponents(
   image: GrayImage,
   threshold: number,
-  bounds: { left: number; top: number; right: number; bottom: number }
+  bounds: { left: number; top: number; right: number; bottom: number },
+  signal?: AbortSignal
 ) {
+  let lastYield = performance.now();
   const { data, width } = image;
   const left = Math.max(1, Math.floor(bounds.left));
   const right = Math.min(width - 1, Math.ceil(bounds.right));
@@ -145,6 +173,7 @@ function findComponents(
   const components: Component[] = [];
 
   for (let y = top; y < bottom; y++) {
+    if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     for (let x = left; x < right; x++) {
       const start = y * width + x;
       if (visited[start] || data[start] > threshold) continue;
@@ -159,6 +188,7 @@ function findComponents(
       queue[tail++] = start;
 
       while (head < tail) {
+        if ((head & 8191) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
         const index = queue[head++];
         const px = index % width;
         const py = Math.floor(index / width);
@@ -167,22 +197,17 @@ function findComponents(
         minY = Math.min(minY, py);
         maxY = Math.max(maxY, py);
 
-        const neighbors = [index - 1, index + 1, index - width, index + width];
-        for (const next of neighbors) {
-          const nx = next % width;
-          const ny = Math.floor(next / width);
-          if (
-            nx < left ||
-            nx >= right ||
-            ny < top ||
-            ny >= bottom ||
-            visited[next] ||
-            data[next] > threshold
-          ) {
-            continue;
-          }
-          visited[next] = 1;
-          queue[tail++] = next;
+        if (px > left && !visited[index - 1] && data[index - 1] <= threshold) {
+          visited[index - 1] = 1; queue[tail++] = index - 1;
+        }
+        if (px + 1 < right && !visited[index + 1] && data[index + 1] <= threshold) {
+          visited[index + 1] = 1; queue[tail++] = index + 1;
+        }
+        if (py > top && !visited[index - width] && data[index - width] <= threshold) {
+          visited[index - width] = 1; queue[tail++] = index - width;
+        }
+        if (py + 1 < bottom && !visited[index + width] && data[index + width] <= threshold) {
+          visited[index + width] = 1; queue[tail++] = index + width;
         }
       }
 
@@ -203,13 +228,13 @@ function findComponents(
   return components;
 }
 
-function findFiducials(image: GrayImage): Component[] | undefined {
-  const components = findComponents(image, 135, {
+async function findFiducials(image: GrayImage): Promise<Component[] | undefined> {
+  const components = (await findComponents(image, 135, {
     left: 0,
     top: 0,
     right: image.width,
     bottom: image.height,
-  }).filter((component) => {
+  })).filter((component) => {
     const ratio = component.width / component.height;
     return (
       component.width >= 10 &&
@@ -302,11 +327,13 @@ function destinationToSourceHomography(points: Point[], targets: Point[] = [
   return solveLinearSystem(equations, values);
 }
 
-function rectify(image: GrayImage, anchors: Point[], targets?: Point[]) {
+async function rectify(image: GrayImage, anchors: Point[], targets?: Point[], signal?: AbortSignal) {
+  let lastYield = performance.now();
   const h = destinationToSourceHomography(anchors, targets);
   const output = new Uint8Array(NORMALIZED_WIDTH * NORMALIZED_HEIGHT);
   output.fill(255);
   for (let y = 0; y < NORMALIZED_HEIGHT; y++) {
+    if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     for (let x = 0; x < NORMALIZED_WIDTH; x++) {
       const denominator = h[6] * x + h[7] * y + 1;
       const sx = Math.round((h[0] * x + h[1] * y + h[2]) / denominator);
@@ -358,7 +385,6 @@ function median(values: number[]) {
 
 function selectRegularBubbleRun(items: Component[], optionsCount: number, typicalDiameter: number) {
   const sorted = [...items].sort((a, b) => a.x - b.x);
-  let best: { items: Component[]; score: number } | undefined;
 
   for (let start = 0; start <= sorted.length - optionsCount; start++) {
     const run = sorted.slice(start, start + optionsCount);
@@ -368,12 +394,16 @@ function selectRegularBubbleRun(items: Component[], optionsCount: number, typica
     const gapDeviation = Math.sqrt(
       gaps.reduce((sum, gap) => sum + (gap - averageGap) ** 2, 0) / gaps.length
     );
-    const score = gapDeviation / averageGap;
+    const diameters = run.map((item) => (item.width + item.height) / 2);
+    const sizeError = Math.max(...diameters) / Math.max(1, Math.min(...diameters)) - 1;
+    if (sizeError > IMAGE_OMR_CONFIG.maximumBubbleSizeVariation) continue;
+    const score = gapDeviation / averageGap + sizeError * 0.3;
     if (Math.max(...gaps) / Math.max(1, Math.min(...gaps)) > 1.8) continue;
-    if (!best || score < best.score) best = { items: run, score };
+    // A 25-item crop may still show the second column. Keep the first complete run consistently.
+    if (score <= 0.32) return run;
   }
 
-  return best?.score !== undefined && best.score <= 0.32 ? best.items : undefined;
+  return undefined;
 }
 
 type DetectedBubbleRow = { y: number; bubbles: Component[]; radius: number };
@@ -439,29 +469,33 @@ function chooseRegularRows(rows: DetectedBubbleRow[], expectedRows: number) {
   return bestScore <= 0.34 ? bestRows : [];
 }
 
-function discoverTwoColumnBubbleGrid(
+async function discoverTwoColumnBubbleGrid(
   image: GrayImage,
   optionsCount: number,
-  rowsPerColumn: number
-): BubbleGrid {
-  const rawCandidates = findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
+  rowsPerColumn: number,
+  signal?: AbortSignal
+): Promise<BubbleGrid> {
+  const rawCandidates = (await findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
     left: image.width * 0.04,
     top: image.height * 0.05,
     right: image.width * 0.96,
     bottom: image.height * 0.96,
-  }).filter((component) => {
+  }, signal)).filter((component) => {
     const ratio = component.width / component.height;
     const maximumSize = Math.min(70, image.width * 0.085);
     return component.width >= 8 && component.width <= maximumSize
       && component.height >= 8 && component.height <= maximumSize
       && ratio >= 0.62 && ratio <= 1.55 && component.area >= 14;
   });
-  const estimatedDiameter = median(rawCandidates.map((item) => (item.width + item.height) / 2));
+  const estimatedDiameter = median(rawCandidates.map((item) => (item.width + item.height) / 2)
+    .sort((a, b) => b - a).slice(0, rowsPerColumn * optionsCount * 2));
   if (!estimatedDiameter) {
     throw new OmrScanError('No answer bubbles were found. Move closer and keep the complete sheet visible.');
   }
-  const duplicateDistance = Math.max(4, estimatedDiameter * 0.34);
+  const collectRows = (diameter: number, minimumDiameter: number) => {
+  const duplicateDistance = Math.max(4, diameter * 0.34);
   const candidates = [...rawCandidates]
+    .filter((item) => (item.width + item.height) / 2 >= minimumDiameter)
     .sort((a, b) => b.width * b.height - a.width * a.height)
     .reduce<Component[]>((chosen, item) => {
       if (!chosen.some((existing) => Math.hypot(existing.x - item.x, existing.y - item.y) < duplicateDistance)) {
@@ -486,7 +520,7 @@ function discoverTwoColumnBubbleGrid(
     if (nearest) nearest.push(candidate);
     else groups.push([candidate]);
   });
-  const detectedRows = groups.map((group) => {
+  return groups.map((group) => {
     const bubbles = selectTwoBubbleRuns(group, optionsCount, typicalDiameter);
     if (!bubbles) return undefined;
     return {
@@ -495,8 +529,15 @@ function discoverTwoColumnBubbleGrid(
       radius: Math.max(4, median(bubbles.map((item) => (item.width + item.height) / 2)) * 0.28),
     };
   }).filter((row): row is DetectedBubbleRow => Boolean(row)).sort((a, b) => a.y - b.y);
+  };
+  let detectedRows = collectRows(estimatedDiameter, estimatedDiameter * 0.65);
+  if (detectedRows.length !== rowsPerColumn || chooseRegularRows(detectedRows, rowsPerColumn).length !== rowsPerColumn) {
+    // Reuse components for low-resolution outlines whose rings split into smaller fragments.
+    const fallback = collectRows(median(rawCandidates.map((item) => (item.width + item.height) / 2)), 0);
+    if (fallback.length === rowsPerColumn && chooseRegularRows(fallback, rowsPerColumn).length === rowsPerColumn) detectedRows = fallback;
+  }
   const rows = chooseRegularRows(detectedRows, rowsPerColumn);
-  if (rows.length !== rowsPerColumn) {
+  if (rows.length !== rowsPerColumn || detectedRows.length !== rowsPerColumn) {
     throw new OmrScanError(
       `Answer-sheet alignment failed. Found ${detectedRows.length} of ${rowsPerColumn} complete rows with both columns. Retake the photo with the full sheet visible.`
     );
@@ -514,17 +555,18 @@ function discoverTwoColumnBubbleGrid(
   };
 }
 
-function discoverPartialBubbleGrid(
+async function discoverPartialBubbleGrid(
   image: GrayImage,
   optionsCount: number,
-  rowsPerColumn: number
-): BubbleGrid {
-  const rawCandidates = findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
+  rowsPerColumn: number,
+  signal?: AbortSignal
+): Promise<BubbleGrid> {
+  const rawCandidates = (await findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
     left: image.width * 0.08,
     top: image.height * 0.02,
     right: image.width * 0.99,
     bottom: image.height * 0.99,
-  }).filter((component) => {
+  }, signal)).filter((component) => {
     const ratio = component.width / component.height;
     const maximumSize = Math.min(95, image.width * 0.13);
     return (
@@ -540,9 +582,11 @@ function discoverPartialBubbleGrid(
 
   const estimatedDiameter = median(
     rawCandidates.map((item) => (item.width + item.height) / 2)
+      .sort((a, b) => b - a).slice(0, rowsPerColumn * optionsCount)
   );
   const duplicateDistance = Math.max(5, estimatedDiameter * 0.38);
   const candidates = [...rawCandidates]
+    .filter((item) => (item.width + item.height) / 2 >= estimatedDiameter * 0.65)
     .sort((a, b) => b.width * b.height - a.width * a.height)
     .reduce<Component[]>((chosen, item) => {
       const duplicate = chosen.some(
@@ -583,33 +627,18 @@ function discoverPartialBubbleGrid(
         radius: Math.max(
           5,
           median(bubbles.map((item) => (item.width + item.height) / 2))
-            * IMAGE_OMR_CONFIG.sampleRadiusRatio
+            * 0.28
         ),
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
     .sort((a, b) => a.y - b.y);
 
-  let rows = detectedRows;
-  if (detectedRows.length > rowsPerColumn) {
-    let bestWindow = detectedRows.slice(0, rowsPerColumn);
-    let bestScore = Number.POSITIVE_INFINITY;
-    for (let start = 0; start <= detectedRows.length - rowsPerColumn; start++) {
-      const window = detectedRows.slice(start, start + rowsPerColumn);
-      const gaps = window.slice(1).map((row, index) => row.y - window[index].y);
-      const typicalGap = median(gaps);
-      const score = gaps.reduce((sum, gap) => sum + Math.abs(gap - typicalGap), 0);
-      if (score < bestScore) {
-        bestScore = score;
-        bestWindow = window;
-      }
-    }
-    rows = bestWindow;
-  }
+  const rows = chooseRegularRows(detectedRows, rowsPerColumn);
 
-  if (rows.length !== rowsPerColumn) {
+  if (rows.length !== rowsPerColumn || detectedRows.length !== rowsPerColumn) {
     throw new OmrScanError(
-      `Found ${rows.length} of ${rowsPerColumn} answer rows. Keep every row 1-25 and all A-D circles visible, then move closer.`
+      `Could not align all ${rowsPerColumn} answer rows. Keep every question and all A-${optionsCount === 5 ? 'E' : 'D'} circles visible, then retake the photo.`
     );
   }
 
@@ -622,18 +651,18 @@ function discoverPartialBubbleGrid(
   };
 }
 
-function discoverBubbleGrid(
+async function discoverBubbleGrid(
   image: GrayImage,
   optionsCount: number,
   rowsPerColumn: number,
   questionColumns: number = 2
-): BubbleGrid {
-  const candidates = findComponents(image, 145, {
+): Promise<BubbleGrid> {
+  const candidates = (await findComponents(image, 145, {
     left: image.width * (questionColumns === 1 ? 0.22 : 0.12),
     top: image.height * 0.05,
     right: image.width * 0.98,
     bottom: image.height * 0.97,
-  }).filter((component) => {
+  })).filter((component) => {
     const ratio = component.width / component.height;
     return (
       component.width >= 10 &&
@@ -749,7 +778,7 @@ function quantile(values: number[], fraction: number) {
 function calibrateMarkScores(rawRows: Array<Record<string, number>>, options: string[]) {
   const baselines = Object.fromEntries(options.map((option) => [
     option,
-    quantile(rawRows.map((row) => row[option]), 0.32),
+    Math.min(IMAGE_OMR_CONFIG.maximumPrintedBaseline, quantile(rawRows.map((row) => row[option]), 0.32)),
   ]));
   return rawRows.map((row) => Object.fromEntries(options.map((option) => {
     const baseline = baselines[option];
@@ -758,9 +787,9 @@ function calibrateMarkScores(rawRows: Array<Record<string, number>>, options: st
   })));
 }
 
-function gridGeometryConfidence(grid: BubbleGrid, optionsCount: number) {
+function gridGeometryConfidence(grid: BubbleGrid, optionsCount: number, rowsPerColumn = OMR_ROWS_PER_COLUMN, columnCount = 2) {
   const rows = grid.rowXCenters || [];
-  if (rows.length !== OMR_ROWS_PER_COLUMN || rows.some((row) => row.length !== optionsCount * 2)) return 0;
+  if (rows.length !== rowsPerColumn || rows.some((row) => row.length !== optionsCount * columnCount)) return 0;
   const yGaps = grid.yCenters.slice(1).map((y, index) => y - grid.yCenters[index]);
   const expectedYGap = median(yGaps);
   const yError = yGaps.reduce((sum, gap) => sum + Math.abs(gap - expectedYGap), 0)
@@ -770,12 +799,14 @@ function gridGeometryConfidence(grid: BubbleGrid, optionsCount: number) {
     ...row.slice(optionsCount + 1).map((x, index) => x - row[optionsCount + index]),
   ]);
   const expectedOptionGap = median(optionGaps);
+  // Reject rows that jump between columns or shift onto question numbers.
+  if (rows.some((row, i) => i > 0 && Math.abs(row[0] - rows[i - 1][0]) > expectedOptionGap * 0.65)) return 0;
   const xError = optionGaps.reduce((sum, gap) => sum + Math.abs(gap - expectedOptionGap), 0)
     / Math.max(1, expectedOptionGap * optionGaps.length);
   return Math.max(0, Math.min(1, 1 - yError * 1.8 - xError * 1.3));
 }
 
-function canonicalizeGrid(source: GrayImage, grid: BubbleGrid) {
+async function canonicalizeGrid(source: GrayImage, grid: BubbleGrid, signal?: AbortSignal) {
   const rows = grid.rowXCenters!;
   const lastOption = rows[0].length - 1;
   const sourceAnchors = [
@@ -790,7 +821,7 @@ function canonicalizeGrid(source: GrayImage, grid: BubbleGrid) {
     { x: NORMALIZED_WIDTH - 92, y: NORMALIZED_HEIGHT - 112 },
     { x: 92, y: NORMALIZED_HEIGHT - 112 },
   ];
-  const warped = rectify(source, sourceAnchors, targets);
+  const warped = await rectify(source, sourceAnchors, targets, signal);
   const sourceToCanonical = destinationToSourceHomography(targets, sourceAnchors);
   const canonicalRows = rows.map((row, rowIndex) => row.map((x) => mapPoint(sourceToCanonical, {
     x,
@@ -809,7 +840,7 @@ function canonicalizeGrid(source: GrayImage, grid: BubbleGrid) {
     ) / 2;
   });
   return {
-    image: normalizeLighting(warped.image),
+    image: warped.image,
     grid: {
       xCenters: [],
       yCenters,
@@ -823,14 +854,18 @@ function canonicalizeGrid(source: GrayImage, grid: BubbleGrid) {
 export async function analyzeAnswerSheetImageDetailed(
   imageUri: string,
   totalQuestions: QuestionCount,
-  optionsCount: OptionCount
+  optionsCount: OptionCount,
+  progress: ScanProgress = {}
 ): Promise<OmrImageAnalysis> {
+  const timer = createScanTimer();
   const scannerLayout = getScannerSheetLayout(totalQuestions, optionsCount);
   if (!scannerLayout) {
-    throw new OmrScanError('Automatic photo recognition currently supports 25- and 50-question sheets.');
+    throw new OmrScanError('Automatic photo recognition supports 10, 20, 25, 30, 40 and 50 questions.');
   }
-  const source = await loadSmallGrayscaleImage(imageUri);
-  const normalizedSource = normalizeLighting(source);
+  await scanStage('Preparing image', progress);
+  const source = await loadSmallGrayscaleImage(imageUri, timer, progress.preserveOrientation);
+  await scanStage('Finding answer sheet', progress);
+  const normalizedSource = await timer.measure('preprocessMs', () => normalizeLighting(source, progress.signal));
   const options = OPTION_LETTERS.slice(0, optionsCount);
   let analysisImage = normalizedSource;
   let analysisGrid: BubbleGrid;
@@ -838,20 +873,22 @@ export async function analyzeAnswerSheetImageDetailed(
   let mode: OmrImageAnalysis['geometry']['mode'] = 'partial-grid';
 
   if (scannerLayout.columnCount === 1) {
-    sourceGrid = discoverPartialBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn);
-    analysisGrid = sourceGrid;
+    sourceGrid = await timer.measure('bubbleDetectionMs', () => discoverPartialBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn, progress.signal));
   } else {
-    sourceGrid = discoverTwoColumnBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn);
-    const geometryConfidence = gridGeometryConfidence(sourceGrid, optionsCount);
-    if (geometryConfidence < 0.82) {
-      throw new OmrScanError('Answer-sheet alignment failed. Please retake the photo with the full sheet flat and visible.');
-    }
-    const canonical = canonicalizeGrid(source, sourceGrid);
-    analysisImage = canonical.image;
-    analysisGrid = canonical.grid;
+    sourceGrid = await timer.measure('bubbleDetectionMs', () => discoverTwoColumnBubbleGrid(normalizedSource, optionsCount, scannerLayout.rowsPerColumn, progress.signal));
     mode = 'bubble-grid';
   }
+  const geometryConfidence = gridGeometryConfidence(sourceGrid, optionsCount, scannerLayout.rowsPerColumn, scannerLayout.columnCount);
+  if (geometryConfidence < IMAGE_OMR_CONFIG.minimumGeometryConfidence) {
+    throw new OmrScanError('Answer-sheet alignment failed. Please retake the photo with the full answer grid flat and visible.');
+  }
+  await scanStage('Aligning sheet', progress);
+  const canonical = await timer.measure('perspectiveCorrectionMs', () => canonicalizeGrid(source, sourceGrid, progress.signal));
+  analysisImage = await timer.measure('preprocessMs', () => normalizeLighting(canonical.image, progress.signal));
+  analysisGrid = canonical.grid;
+  await scanStage('Reading answers', progress);
 
+  const samplingStart = performance.now();
   const rawRows: Array<Record<string, number>> = [];
   for (let question = 1; question <= totalQuestions; question++) {
     const column = scannerLayout.columnCount === 1 ? 0 : Math.floor((question - 1) / scannerLayout.rowsPerColumn);
@@ -869,6 +906,8 @@ export async function analyzeAnswerSheetImageDetailed(
       ),
     ])));
   }
+  timer.timings.bubbleSamplingMs = performance.now() - samplingStart;
+  const classificationStart = performance.now();
   const calibratedRows = calibrateMarkScores(rawRows, options);
   const results: BubbleAnalysisResult[] = calibratedRows.map((ratios, questionIndex) => {
     const question = questionIndex + 1;
@@ -899,23 +938,20 @@ export async function analyzeAnswerSheetImageDetailed(
       },
     };
   });
-  const confidence = scannerLayout.columnCount === 1 ? 0.9 : gridGeometryConfidence(sourceGrid, optionsCount);
+  timer.timings.classificationMs = performance.now() - classificationStart;
+  const confidence = geometryConfidence;
   if (__DEV__) {
     console.info('[CheckMate OMR]', JSON.stringify({
       source: `${source.width}x${source.height}`,
       canonical: `${analysisImage.width}x${analysisImage.height}`,
       mode,
       geometryConfidence: Number(confidence.toFixed(3)),
-      results: results.map((item) => ({
-        question: item.questionNumber,
-        scores: item.fillRatios,
-        selected: item.detectedOptions,
-        classification: item.status,
-        confidence: item.confidence,
-      })),
+      ...timer.finish(),
     }));
   }
   return {
+    timings: timer.finish(),
+    originalImageUri: imageUri,
     results,
     previewImageUri: source.uri,
     canonicalImageUri: undefined,

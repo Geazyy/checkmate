@@ -1,6 +1,7 @@
 export const OMR_SHEET_VERSION = '2.1';
 export const OMR_ROWS_PER_COLUMN = 25;
-export const SCANNER_SUPPORTED_ITEM_COUNTS = [25, 50] as const;
+export const SCANNER_SUPPORTED_ITEM_COUNTS = [10, 20, 25, 30, 40, 50] as const;
+export type ScannerItemCount = typeof SCANNER_SUPPORTED_ITEM_COUNTS[number];
 export const OMR_CANONICAL_SIZE = { width: 800, height: 1120 } as const;
 export const OMR_50_AD_LAYOUT = {
   layoutId: 'CM-OMR-V2.1-Q50-C4',
@@ -138,7 +139,7 @@ export function buildAnswerSheetFilename(config: AnswerSheetConfig) {
   return `Answer-Sheet-${clampItemCount(config.itemCount)}-Items-${paper}-${orientation}.pdf`;
 }
 
-export function scannerSupportsItemCount(itemCount: number): itemCount is 25 | 50 {
+export function scannerSupportsItemCount(itemCount: number): itemCount is ScannerItemCount {
   return (SCANNER_SUPPORTED_ITEM_COUNTS as readonly number[]).includes(itemCount);
 }
 
@@ -154,7 +155,7 @@ export function getFourSheetWarning(config: AnswerSheetConfig) {
 }
 
 export interface ScannerSheetLayout {
-  itemCount: 25 | 50;
+  itemCount: ScannerItemCount;
   choiceCount: 4 | 5;
   rowsPerColumn: number;
   columnCount: 1 | 2;
@@ -171,8 +172,8 @@ export function getScannerSheetLayout(
   return {
     itemCount,
     choiceCount,
-    rowsPerColumn: OMR_ROWS_PER_COLUMN,
-    columnCount: itemCount === 50 ? 2 : 1,
+    rowsPerColumn: getQuestionColumns(itemCount)[0].length,
+    columnCount: getQuestionColumns(itemCount).length as 1 | 2,
     canonicalWidth: OMR_CANONICAL_SIZE.width,
     canonicalHeight: OMR_CANONICAL_SIZE.height,
     supportsCutSheets: true,

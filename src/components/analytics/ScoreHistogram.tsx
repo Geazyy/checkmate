@@ -67,12 +67,12 @@ const styles = StyleSheet.create({
   barTrack: {
     width: 26,
     height: 90,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: ClayColors.borderSubtle,
     borderRadius: 8,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
   },
   barFill: {
     width: '100%',

@@ -1,5 +1,7 @@
+import { ActionButton as TouchableOpacity } from './Controls';
+import { ClayColors } from '../../constants/theme';
 import React, { ReactNode, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ChevronRight, CircleHelp, ClipboardList, Home, LogOut, ScanLine, Settings, UserRound, Users, X } from 'lucide-react-native';
 import { Href, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,7 +48,7 @@ export function AppShell({ title, children }: AppShellProps) {
           active && (sidebar ? styles.sideNavItemActive : styles.bottomNavItemActive),
         ]}
         onPress={() => router.replace(item.href)}>
-        <Icon size={20} color={active ? '#4F46E5' : '#64748B'} strokeWidth={active ? 2.5 : 2} />
+        <Icon size={20} color={active ? ClayColors.primary : ClayColors.textMuted} strokeWidth={active ? 2.5 : 2} />
         <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
       </TouchableOpacity>
     );
@@ -58,7 +60,7 @@ export function AppShell({ title, children }: AppShellProps) {
       style={sidebar ? styles.profileButton : styles.bottomNavItem}
       onPress={() => setProfileOpen(true)}>
       <View style={sidebar ? styles.profileAvatar : undefined}>
-        <UserRound size={sidebar ? 18 : 20} color={sidebar ? '#4F46E5' : '#64748B'} />
+        <UserRound size={sidebar ? 18 : 20} color={sidebar ? ClayColors.primary : ClayColors.textMuted} />
       </View>
       {sidebar ? (
         <>
@@ -66,7 +68,7 @@ export function AppShell({ title, children }: AppShellProps) {
             <Text style={styles.profileName} numberOfLines={1}>{user?.full_name ?? 'Teacher'}</Text>
             <Text style={styles.profileRole}>Offline Workspace</Text>
           </View>
-          <ChevronRight size={16} color="#94A3B8" />
+          <ChevronRight size={16} color={ClayColors.textMuted} />
         </>
       ) : <Text style={styles.navLabel}>Profile</Text>}
     </TouchableOpacity>
@@ -86,7 +88,7 @@ export function AppShell({ title, children }: AppShellProps) {
           <View style={styles.sideNav}>
             {NAV_ITEMS.slice(0, 2).map((item) => navButton(item, true))}
             <TouchableOpacity style={styles.sideScan} onPress={openScan}>
-              <ScanLine size={20} color="#FFFFFF" strokeWidth={2.4} />
+              <ScanLine size={20} color={ClayColors.onPrimary} strokeWidth={2.4} />
               <Text style={styles.sideScanText}>Scan sheet</Text>
             </TouchableOpacity>
             {NAV_ITEMS.slice(2).map((item) => navButton(item, true))}
@@ -116,7 +118,7 @@ export function AppShell({ title, children }: AppShellProps) {
           {NAV_ITEMS.slice(0, 2).map((item) => navButton(item, false))}
           <TouchableOpacity accessibilityLabel="Scan answer sheet" style={styles.scanTab} onPress={openScan}>
             <View style={styles.scanTabIcon}>
-              <ScanLine size={22} color="#FFFFFF" strokeWidth={2.4} />
+              <ScanLine size={22} color={ClayColors.onPrimary} strokeWidth={2.4} />
             </View>
             <Text style={styles.scanTabText}>Scan</Text>
           </TouchableOpacity>
@@ -129,13 +131,13 @@ export function AppShell({ title, children }: AppShellProps) {
         <Pressable style={styles.modalBackdrop} onPress={() => setProfileOpen(false)}>
           <Pressable style={[styles.profilePanel, desktop ? styles.profilePanelDesktop : styles.profilePanelMobile]} onPress={() => undefined}>
             <View style={styles.profilePanelHeader}>
-              <View style={styles.largeAvatar}><UserRound size={24} color="#FFFFFF" /></View>
+              <View style={styles.largeAvatar}><UserRound size={24} color={ClayColors.onPrimary} /></View>
               <View style={styles.profilePanelCopy}>
                 <Text style={styles.profilePanelName}>{user?.full_name ?? 'Teacher'}</Text>
                 <Text style={styles.profilePanelEmail}>{user?.email ?? 'Local Offline Mode'}</Text>
               </View>
               <TouchableOpacity accessibilityLabel="Close profile menu" style={styles.closeButton} onPress={() => setProfileOpen(false)}>
-                <X size={18} color="#64748B" />
+                <X size={18} color={ClayColors.textMuted} />
               </TouchableOpacity>
             </View>
             <View style={styles.profileMenuDivider} />
@@ -144,11 +146,12 @@ export function AppShell({ title, children }: AppShellProps) {
               { label: 'Help and support', icon: CircleHelp },
               { label: 'Log out', icon: LogOut },
             ].map(({ label, icon: Icon }) => (
-              <View key={label} style={styles.profileMenuItem}>
-                <Icon size={18} color={label === 'Log out' ? '#EF4444' : '#64748B'} />
+              <TouchableOpacity key={label} disabled={label !== 'Settings'} style={styles.profileMenuItem}
+                onPress={() => { setProfileOpen(false); router.push('/settings'); }}>
+                <Icon size={18} color={label === 'Log out' ? ClayColors.danger : ClayColors.textMuted} />
                 <Text style={[styles.profileMenuLabel, label === 'Log out' && styles.logoutLabel]}>{label}</Text>
-                <Text style={styles.soonLabel}>Soon</Text>
-              </View>
+                {label === 'Settings' ? <ChevronRight size={18} color={ClayColors.textMuted} /> : <Text style={styles.soonLabel}>Soon</Text>}
+              </TouchableOpacity>
             ))}
           </Pressable>
         </Pressable>
@@ -158,17 +161,17 @@ export function AppShell({ title, children }: AppShellProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: '#F0F4F8' },
+  root: { flex: 1, flexDirection: 'row', backgroundColor: ClayColors.bg },
   main: { flex: 1, minWidth: 0 },
   content: { flex: 1, paddingBottom: 76 },
   desktopContent: { paddingBottom: 0 },
   sidebar: {
     width: 240,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderRightWidth: 2,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: ClayColors.borderSubtle,
     padding: 18,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 4, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -184,22 +187,22 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 14,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
-  brandMarkText: { color: '#FFFFFF', fontSize: 19, fontWeight: '800' },
-  brand: { color: '#0F172A', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  brandSub: { color: '#64748B', fontSize: 10, fontWeight: '600', marginTop: 1 },
+  brandMarkText: { color: ClayColors.onPrimary, fontSize: 19, fontWeight: '800' },
+  brand: { color: ClayColors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: 0 },
+  brandSub: { color: ClayColors.textMuted, fontSize: 10, fontWeight: '600', marginTop: 1 },
   sideNav: { gap: 8 },
   sideNavItem: {
     minHeight: 46,
@@ -208,14 +211,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: ClayColors.surfaceMuted,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   sideNavItemActive: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#C7D2FE',
-    shadowColor: '#8CA0BA',
+    backgroundColor: ClayColors.cardIndigo,
+    borderColor: ClayColors.indigoBorder,
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 2, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -236,46 +239,46 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   bottomNavItemActive: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderRadius: 14,
   },
-  navLabel: { color: '#64748B', fontSize: 11, fontWeight: '600' },
-  navLabelActive: { color: '#4F46E5', fontWeight: '800' },
+  navLabel: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '600' },
+  navLabelActive: { color: ClayColors.primary, fontWeight: '800' },
   sideScan: {
     minHeight: 48,
     marginVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 4,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 5,
   },
-  sideScanText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  sideScanText: { color: ClayColors.onPrimary, fontSize: 13, fontWeight: '700' },
   activeExamBlock: {
     marginTop: 'auto',
     padding: 14,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
-    shadowColor: '#8CA0BA',
+    borderColor: ClayColors.indigoBorder,
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 3, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 2,
   },
-  activeExamLabel: { color: '#4F46E5', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  activeExamTitle: { color: '#0F172A', fontSize: 12, fontWeight: '700', marginTop: 4, lineHeight: 17 },
+  activeExamLabel: { color: ClayColors.primary, fontSize: 9, fontWeight: '800', letterSpacing: 0 },
+  activeExamTitle: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '700', marginTop: 4, lineHeight: 17 },
   bottomNav: {
     position: 'absolute',
     left: 12,
@@ -284,14 +287,14 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingTop: 4,
     paddingHorizontal: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderRadius: 24,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 50,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -307,26 +310,26 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.5)',
     borderBottomWidth: 3,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
   },
-  scanTabText: { color: '#4F46E5', fontSize: 10, fontWeight: '800' },
+  scanTabText: { color: ClayColors.primary, fontSize: 10, fontWeight: '800' },
   profileButton: {
     minHeight: 56,
     marginTop: 12,
     paddingHorizontal: 8,
     borderTopWidth: 1.5,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: ClayColors.borderSubtle,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -335,22 +338,22 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileCopy: { flex: 1, minWidth: 0 },
-  profileName: { color: '#0F172A', fontSize: 12, fontWeight: '700' },
-  profileRole: { color: '#64748B', fontSize: 9, fontWeight: '600', marginTop: 1 },
+  profileName: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '700' },
+  profileRole: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '600', marginTop: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
   profilePanel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
     padding: 20,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -363,21 +366,21 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3,
-    borderBottomColor: '#3730A3',
+    borderBottomColor: ClayColors.primaryBevel,
   },
   profilePanelCopy: { flex: 1, minWidth: 0 },
-  profilePanelName: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
-  profilePanelEmail: { color: '#64748B', fontSize: 11, marginTop: 2 },
-  closeButton: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  profileMenuDivider: { height: 1.5, backgroundColor: '#E2E8F0', marginVertical: 14 },
-  profileMenuItem: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 6 },
-  profileMenuLabel: { flex: 1, color: '#0F172A', fontSize: 13, fontWeight: '600' },
-  logoutLabel: { color: '#EF4444', fontWeight: '700' },
-  soonLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  profilePanelName: { color: ClayColors.textPrimary, fontSize: 15, fontWeight: '800' },
+  profilePanelEmail: { color: ClayColors.textMuted, fontSize: 11, marginTop: 2 },
+  closeButton: { width: 34, height: 34, borderRadius: 12, backgroundColor: ClayColors.surfaceInset, alignItems: 'center', justifyContent: 'center' },
+  profileMenuDivider: { height: 1.5, backgroundColor: ClayColors.borderSubtle, marginVertical: 14 },
+  profileMenuItem: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, borderRadius: 14, backgroundColor: ClayColors.surfaceMuted, marginBottom: 6 },
+  profileMenuLabel: { flex: 1, color: ClayColors.textPrimary, fontSize: 13, fontWeight: '600' },
+  logoutLabel: { color: ClayColors.danger, fontWeight: '700' },
+  soonLabel: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
 });

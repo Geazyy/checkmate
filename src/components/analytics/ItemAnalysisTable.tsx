@@ -13,15 +13,15 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ items }) =
       case 'Excellent':
       case 'Easy':
       case 'Moderate':
-        return { bg: ClayColors.cardMint, text: '#047857' };
+        return { bg: ClayColors.cardMint, text: ClayColors.success };
       case 'Good':
       case 'Acceptable':
-        return { bg: ClayColors.cardSky, text: '#0284C7' };
+        return { bg: ClayColors.cardSky, text: ClayColors.skyText };
       case 'Poor':
       case 'Hard':
-        return { bg: ClayColors.cardAmber, text: '#D97706' };
+        return { bg: ClayColors.cardAmber, text: ClayColors.warning };
       default:
-        return { bg: ClayColors.cardRose, text: '#DC2626' };
+        return { bg: ClayColors.cardRose, text: ClayColors.danger };
     }
   };
 
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1.5,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: ClayColors.borderSubtle,
     paddingBottom: 8,
     marginBottom: 8,
   },
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: ClayColors.surfaceInset,
   },
   cellText: {
     color: ClayColors.textPrimary,

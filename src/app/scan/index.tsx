@@ -1,97 +1,110 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActionButton as TouchableOpacity } from '../../components/common/Controls';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Href, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowRight, CheckCircle2, FileText } from 'lucide-react-native';
+import { ArrowRight, CheckCircle2, FileText, RotateCw, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraOverlay } from '../../components/scanner/CameraOverlay';
+import { CameraControls, CameraGuide } from '../../components/scanner/CameraOverlay';
+import { fitCameraFrame, PORTRAIT_CAMERA_ASPECT, selectPictureSize } from '../../services/omr/captureGeometry';
 import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
 import { scoreScanResults } from '../../services/omr/scannerEngine';
 import { analyzeAnswerSheetImageDetailed } from '../../services/omr/imageScanner';
 import { AppShell } from '../../components/common/AppShell';
 import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
+import { beginReviewTiming, checkCancelled, createScanTimer, scanStage, ScanCancelledError } from '../../services/omr/scanTiming';
 
 export default function CameraScanScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { examId } = useLocalSearchParams<{ examId?: string }>();
   const { exams, activeExam, answerKeysByExamId, setActiveExam } = useExamStore();
-  const { isAligned, torchEnabled, setIsAligned, setTorchEnabled, setLastScannedResult } =
+  const { torchEnabled, setTorchEnabled, setLastScannedResult } =
     useScanStore();
 
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanMessage, setScanMessage] = useState('Align answer sheet inside the frame...');
+  const [scanMessage, setScanMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [webCamActive, setWebCamActive] = useState(false);
   const [camError, setCamError] = useState('');
   const [cameraReady, setCameraReady] = useState(false);
   const [pendingImageUri, setPendingImageUri] = useState<string>();
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [pictureSize, setPictureSize] = useState<string>();
+  const [frameArea, setFrameArea] = useState({ width: 0, height: 0 });
+  const [webAspect, setWebAspect] = useState(PORTRAIT_CAMERA_ASPECT);
+  const scanController = useRef<AbortController | null>(null);
+  const inputBusy = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const videoRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraSetup = useRef(false);
+  const mounted = useRef(true);
   const cameraRef = useRef<CameraView>(null);
   const isFocused = useIsFocused();
   const availableExams = exams.filter((exam) => exam.status !== 'archived' && !exam.archived_at);
   const currentExam = availableExams.find((exam) => exam.id === examId);
   const currentAnswerKeys = currentExam ? answerKeysByExamId[currentExam.id] ?? [] : [];
+  const captureGuidance = currentExam
+    ? `Keep questions 1-${currentExam.total_questions} and all A-${currentExam.options_per_question === 5 ? 'E' : 'D'} bubbles visible.`
+    : 'Keep the complete answer sheet visible.';
+  const frame = fitCameraFrame(frameArea.width, frameArea.height, Platform.OS === 'web' ? webAspect : PORTRAIT_CAMERA_ASPECT);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      scanController.current?.abort();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+  useEffect(() => () => {
+    if (pendingImageUri?.startsWith('blob:')) URL.revokeObjectURL(pendingImageUri);
+  }, [pendingImageUri]);
 
   useEffect(() => {
     if (currentExam && activeExam?.id !== currentExam.id) setActiveExam(currentExam);
   }, [activeExam?.id, currentExam, setActiveExam]);
 
-  const startWebCamera = async () => {
+  const startWebCamera = useCallback(async () => {
     setCamError('');
     if (typeof window !== 'undefined' && window.isSecureContext === false) {
-      setCamError(
-        '🔒 Mobile Chrome restricts live video to HTTPS. To use live camera feed on your phone, restart with: npx expo start --web --tunnel'
-      );
+      setCamError('Camera access requires HTTPS or localhost. You can still choose a photo.');
+      return;
     }
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } },
         });
+        if (!mounted.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = stream;
         setWebCamActive(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (e1) {
-        try {
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          setWebCamActive(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallbackStream;
-          }
-        } catch (e2: any) {
-          console.warn('Web camera stream blocked or unavailable:', e2);
-          setWebCamActive(false);
-          setCamError(
-            '🔒 Mobile Chrome blocks live camera video over plain HTTP (http://10.99.46.94). Use HTTPS tunnel or Instant Scan below!'
-          );
-        }
+      } catch {
+        setWebCamActive(false);
+        setCamError('Camera unavailable. Allow camera access in your browser or choose a photo.');
       }
     } else {
-      setCamError(
-        '🔒 Mobile Chrome blocks live camera video over plain HTTP (http://10.99.46.94). Use HTTPS tunnel or Instant Scan below!'
-      );
+      setCamError('Live camera is unavailable in this browser. Choose an answer-sheet photo.');
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && currentExam) {
-      startWebCamera();
+    if (Platform.OS === 'web' && currentExam && isFocused && !pendingImageUri) {
+      // Camera permission and stream availability are external state, including synchronous unsupported-browser errors.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void startWebCamera();
     }
-  }, [currentExam?.id]);
-
-  useEffect(() => {
-    if (isFocused) {
-      setCameraReady(false);
-      setScanMessage(
-        currentExam?.total_questions === 25
-          ? 'Frame only questions 1-25 from the left column...'
-          : 'Align answer sheet inside the frame...'
-      );
-    }
-  }, [currentExam?.total_questions, isFocused]);
+    return () => { streamRef.current?.getTracks().forEach((track) => track.stop()); };
+  }, [currentExam, isFocused, pendingImageUri, startWebCamera]);
 
   const captureWebFrame = () => {
     const video = videoRef.current;
@@ -102,28 +115,31 @@ export default function CameraScanScreen() {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.85);
+    const context = canvas.getContext('2d');
+    if (!context) return undefined;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
   };
 
   const handlePerformScan = async (imageUri: string) => {
-    if (!currentExam || isProcessing) return;
+    if (!currentExam || scanController.current || inputBusy.current) return;
+    const controller = new AbortController();
+    scanController.current = controller;
+    const started = performance.now();
 
     setIsProcessing(true);
     setScanMessage('Preparing and reading the answer rows...');
 
     try {
-      setScanMessage(
-        currentExam.total_questions === 25
-          ? 'Reading questions 1-25 from the left column...'
-          : `Reading ${currentExam.total_questions} answer rows...`
-      );
       const analysis = await analyzeAnswerSheetImageDetailed(
         imageUri,
         currentExam.total_questions,
-        currentExam.options_per_question
+        currentExam.options_per_question,
+        { onStage: setScanMessage, signal: controller.signal, preserveOrientation: true }
       );
+      await scanStage('Saving results', { onStage: setScanMessage, signal: controller.signal });
       const bubbleResults = analysis.results;
+      const saveStart = performance.now();
       const score = scoreScanResults(bubbleResults, currentAnswerKeys);
 
       const newScanResult = {
@@ -137,76 +153,129 @@ export default function CameraScanScreen() {
           : ('graded' as const),
         cropped_sheet_image_url: analysis.previewImageUri,
         scanned_at: new Date().toISOString(),
-        student: {
-          id: `stud-${Math.floor(Math.random() * 900 + 100)}`,
-          teacher_id: currentExam.teacher_id,
-          student_number: `2026-${Math.floor(Math.random() * 90 + 10)}`,
-          first_name: 'Jordan',
-          last_name: 'Taylor',
-          created_at: new Date().toISOString(),
-        },
         items: score.itemDetails,
       };
 
+      checkCancelled(controller.signal);
       setLastScannedResult(newScanResult);
+      analysis.timings.saveResultsMs = performance.now() - saveStart;
+      analysis.timings.totalMs = performance.now() - started;
+      beginReviewTiming(newScanResult.id, analysis.timings);
       router.push({ pathname: '/scan/review', params: { examId: currentExam.id } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to capture the sheet.';
-      setScanMessage(message);
+      setScanMessage(error instanceof ScanCancelledError ? 'Scan cancelled. Retry or retake the photo.' : message);
     } finally {
+      scanController.current = null;
       setIsProcessing(false);
     }
   };
 
   const handleCapturePhoto = async () => {
-    if (isProcessing) return;
+    if (scanController.current || inputBusy.current) return;
+    inputBusy.current = true;
+    setIsPreparing(true);
     setScanMessage('Capturing answer sheet...');
+    const captureTimer = createScanTimer();
     try {
-      const imageUri = Platform.OS === 'web'
-        ? captureWebFrame()
-        : (await cameraRef.current?.takePictureAsync({
-            quality: 0.9,
-            skipProcessing: false,
-          }))?.uri;
+      let imageUri: string | undefined;
+      if (Platform.OS === 'web') imageUri = captureWebFrame();
+      else {
+        const photo = await cameraRef.current?.takePictureAsync({ quality: 0.92, skipProcessing: false, exif: false });
+        imageUri = photo?.uri;
+        // Some Android sensors report landscape near a flat, top-down capture even in a portrait app.
+        if (photo && photo.width > photo.height) imageUri = await renderPhoto(photo.uri, -90);
+      }
       if (!imageUri) throw new Error('The camera did not return an image.');
+      if (!mounted.current) return;
       setPendingImageUri(imageUri);
-      setScanMessage('Check that rows 1-25 and all A-D circles are visible.');
+      setScanMessage(captureGuidance);
+      if (__DEV__) console.info('[Camera timing]', { captureAndOrientationMs: captureTimer.finish().totalMs, pictureSize });
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : 'Unable to capture the sheet.');
+    } finally {
+      inputBusy.current = false;
+      if (mounted.current) setIsPreparing(false);
     }
+  };
+
+  const renderPhoto = async (uri: string, rotation = 0) => {
+    const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
+    });
+    const context = ImageManipulator.manipulate(uri);
+    try {
+      if (rotation) context.rotate(rotation);
+      const width = rotation % 180 ? size.height : size.width;
+      const height = rotation % 180 ? size.width : size.height;
+      if (Math.max(width, height) > 2048) context.resize(width > height ? { width: 2048 } : { height: 2048 });
+      const rendered = await context.renderAsync();
+      try { return (await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 })).uri; }
+      finally { rendered.release(); }
+    } finally { context.release(); }
+  };
+
+  const prepareChosenPhoto = async (uri: string) => {
+    setIsPreparing(true);
+    setScanMessage('Preparing photo...');
+    try {
+      // Bake EXIF into pixels before review, so the preview and detector see the same orientation.
+      const prepared = await renderPhoto(uri);
+      if (mounted.current) { setPendingImageUri(prepared); setScanMessage(captureGuidance); }
+    } catch { setScanMessage('Could not open this photo. Please choose another image.'); }
+    finally { inputBusy.current = false; if (mounted.current) setIsPreparing(false); }
   };
 
   const handlePickImage = async () => {
-    if (isProcessing) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setScanMessage('Photo access is required to choose an answer-sheet image.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 1,
-    });
-    if (!result.canceled && result.assets[0]?.uri) {
-      setPendingImageUri(result.assets[0].uri);
-      setScanMessage('Check that rows 1-25 and all A-D circles are visible.');
+    if (scanController.current || inputBusy.current) return;
+    if (Platform.OS === 'web') { fileInputRef.current?.click(); return; }
+    inputBusy.current = true;
+    setIsPreparing(true);
+    try {
+      const access = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!access.granted) { setScanMessage('Photo access is required to choose an answer-sheet image.'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
+      if (!result.canceled && result.assets[0]?.uri) await prepareChosenPhoto(result.assets[0].uri);
+    } catch { setScanMessage('Could not open your photos. Please try again.'); }
+    finally { inputBusy.current = false; if (mounted.current) setIsPreparing(false); }
+  };
+
+  const handleRotatePhoto = async () => {
+    if (!pendingImageUri || scanController.current || inputBusy.current) return;
+    inputBusy.current = true;
+    setIsPreparing(true);
+    try { setPendingImageUri(await renderPhoto(pendingImageUri, 90)); }
+    catch { setScanMessage('Could not rotate this photo. Please choose it again.'); }
+    finally { inputBusy.current = false; setIsPreparing(false); }
+  };
+
+  const handleCameraReady = async () => {
+    if (cameraSetup.current) { setCameraReady(true); return; }
+    cameraSetup.current = true;
+    try {
+      const sizes = await cameraRef.current?.getAvailablePictureSizesAsync();
+      if (mounted.current && sizes) setPictureSize(selectPictureSize(sizes));
+    } catch { /* The native 4:3 default is supported even when size discovery is unavailable. */ }
+    finally {
+      if (mounted.current) { setCameraReady(true); setScanMessage(captureGuidance); }
     }
   };
 
-  const handleWebFileChange = (e: any) => {
-    if (e.target?.files?.[0]) {
-      const imageUri = URL.createObjectURL(e.target.files[0]);
-      setPendingImageUri(imageUri);
-      setScanMessage('Check that rows 1-25 and all A-D circles are visible.');
-    }
+  const handleWebFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || inputBusy.current || scanController.current) return;
+    inputBusy.current = true;
+    const uri = URL.createObjectURL(file);
+    try { await prepareChosenPhoto(uri); }
+    finally { URL.revokeObjectURL(uri); }
   };
 
   if (!currentExam) {
     return (
       <AppShell title="Scan">
         <View style={styles.examPickerScreen}>
-          <View style={styles.examPickerContent}>
+          <ScrollView contentContainerStyle={styles.examPickerContent}>
             <Text style={styles.pickerEyebrow}>NEW SCAN</Text>
             <Text style={styles.pickerTitle}>Choose an exam</Text>
             <Text style={styles.pickerSubtitle}>
@@ -226,23 +295,23 @@ export default function CameraScanScreen() {
                       setActiveExam(exam);
                       router.replace({ pathname: '/scan', params: { examId: exam.id } });
                     }}>
-                    <View style={styles.pickerIcon}><FileText size={21} color="#67E8F9" /></View>
+                    <View style={styles.pickerIcon}><FileText size={21} color={ClayColors.skyText} /></View>
                     <View style={styles.pickerCopy}>
                       <Text style={styles.pickerExamTitle}>{exam.title}</Text>
                       <Text style={styles.pickerExamMeta}>{exam.class_name || 'General'} · {exam.total_questions} questions</Text>
                       <View style={styles.keyStatus}>
-                        <CheckCircle2 size={13} color={keyReady ? '#34D399' : '#FBBF24'} />
+                        <CheckCircle2 size={13} color={keyReady ? ClayColors.success : ClayColors.warning} />
                         <Text style={[styles.keyStatusText, !keyReady && styles.keyStatusWarning]}>
                           {keyReady ? 'Answer key ready' : `${keyCount}/${exam.total_questions} answers configured`}
                         </Text>
                       </View>
                     </View>
-                    <ArrowRight size={19} color="#94A3B8" />
+                    <ArrowRight size={19} color={ClayColors.textMuted} />
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+          </ScrollView>
         </View>
       </AppShell>
     );
@@ -250,169 +319,110 @@ export default function CameraScanScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Live Embedded Camera Viewfinder (Native or Web) */}
-      {pendingImageUri ? (
-        <Image source={{ uri: pendingImageUri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
-      ) : Platform.OS === 'web' ? (
-        <View style={StyleSheet.absoluteFill}>
-          {/* Always render <video> tag in Web DOM so ref is connected */}
-          {/* @ts-ignore */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: webCamActive ? 'block' : 'none',
-            }}
-          />
-
-          {!webCamActive && (
-            <View style={styles.permissionContainer}>
-              <Text style={styles.permissionTitle}>📷 In-App Camera Viewfinder</Text>
-              <Text style={styles.permissionSub}>
-                {camError ||
-                  'Press below to activate the live camera stream inside the CheckMate scanner app:'}
-              </Text>
-
-              <TouchableOpacity style={styles.grantBtn} onPress={startWebCamera}>
-                <Text style={styles.grantBtnText}>▶️ Enable Live Camera Stream</Text>
-              </TouchableOpacity>
-
-              {/* Direct Photo Upload */}
-              <label style={webBtnStyle}>
-                📁 Upload Answer Sheet Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleWebFileChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-
-              <TouchableOpacity
-                style={styles.demoScanBtn}
-                onPress={() => void handleCapturePhoto()}>
-                <Text style={styles.demoScanText}>⚡ Instant In-App OMR Scan</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+      <View style={[styles.topHeader, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity accessibilityLabel="Close scanner" style={styles.iconButton} onPress={() => {
+          scanController.current?.abort();
+          router.replace(`/exams/${currentExam.id}` as Href);
+        }}><X size={22} color={ClayColors.textPrimary} /></TouchableOpacity>
+        <View style={styles.headerCopy}>
+          <Text style={styles.examTitle} numberOfLines={2}>{currentExam.title}</Text>
+          <Text style={styles.examMeta}>{currentExam.total_questions} questions · {currentExam.options_per_question} choices</Text>
         </View>
-      ) : !isFocused ? (
-        <View style={StyleSheet.absoluteFill} />
-      ) : permission?.granted ? (
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing="back"
-          enableTorch={torchEnabled}
-          onCameraReady={() => {
-            setCameraReady(true);
-            setScanMessage(
-              currentExam?.total_questions === 25
-                ? 'Frame only questions 1-25 from the left column...'
-                : 'Align answer sheet inside the frame...'
-            );
-          }}
-          onMountError={({ message }) => {
-            setCameraReady(false);
-            setScanMessage(`Camera unavailable: ${message}`);
-          }}
-        />
-      ) : (
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionTitle}>📷 Camera Permission Required</Text>
-          <Text style={styles.permissionSub}>
-            CheckMate needs camera access to scan and grade OMR bubble answer sheets.
-          </Text>
-          <TouchableOpacity style={styles.grantBtn} onPress={requestPermission}>
-            <Text style={styles.grantBtnText}>Grant Camera Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.demoScanBtn}
-            onPress={() => void handlePickImage()}>
-            <Text style={styles.demoScanText}>Choose Answer Sheet Photo</Text>
-          </TouchableOpacity>
+        <View style={styles.headerTool}>
+          {pendingImageUri && <TouchableOpacity accessibilityLabel="Rotate photo clockwise"
+            disabled={isProcessing || isPreparing} style={styles.iconButton} onPress={() => void handleRotatePhoto()}>
+            <RotateCw size={22} color={ClayColors.primary} />
+          </TouchableOpacity>}
         </View>
-      )}
-
-      {/* Top Header Controls */}
-      <View style={styles.topHeader}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => currentExam
-            ? router.replace(`/exams/${currentExam.id}` as Href)
-            : router.replace('/exams')}>
-          <Text style={styles.backBtnText}>✕ Close</Text>
-        </TouchableOpacity>
-        <Text style={styles.examTitle}>{currentExam?.title || 'OMR Scanner'}</Text>
-        <TouchableOpacity style={styles.simAlignBtn} onPress={() => setIsAligned(!isAligned)}>
-          <Text style={styles.simAlignText}>{isAligned ? 'Target Lock: ON' : 'Align Target'}</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Visual Reticle Overlay */}
-      {pendingImageUri ? (
-        <View style={styles.confirmOverlay} pointerEvents="box-none">
-          <View style={styles.confirmPanel}>
-            <Text style={styles.confirmText}>{scanMessage}</Text>
-            <View style={styles.confirmActions}>
-              <TouchableOpacity
-                disabled={isProcessing}
-                style={styles.chooseAgainBtn}
-                onPress={() => {
-                  setPendingImageUri(undefined);
-                  setScanMessage('Frame only questions 1-25 from the left column...');
-                }}>
-                <Text style={styles.chooseAgainText}>Retake</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                disabled={isProcessing}
-                style={[styles.usePhotoBtn, isProcessing && styles.disabledBtn]}
-                onPress={() => void handlePerformScan(pendingImageUri)}>
-                <Text style={styles.usePhotoText}>{isProcessing ? 'Reading...' : 'Use Photo'}</Text>
-              </TouchableOpacity>
+      <View style={styles.cameraArea} onLayout={({ nativeEvent }) => setFrameArea(nativeEvent.layout)}>
+        <View testID="camera-frame" style={[styles.cameraFrame, frame]}>
+          {pendingImageUri ? (
+            <Image testID="captured-photo" source={{ uri: pendingImageUri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+          ) : Platform.OS === 'web' ? (
+            <>
+              <video ref={videoRef} autoPlay playsInline muted
+                onLoadedMetadata={() => {
+                  const video = videoRef.current;
+                  if (video?.videoWidth && video.videoHeight) setWebAspect(video.videoWidth / video.videoHeight);
+                }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: webCamActive ? 'block' : 'none' }} />
+              {!webCamActive && <View style={styles.permissionContainer}>
+                <ScrollView contentContainerStyle={styles.permissionContent}>
+                  <Text style={styles.permissionTitle}>Camera unavailable</Text>
+                  <Text style={styles.permissionSub}>{camError || 'Waiting for camera permission...'}</Text>
+                  <TouchableOpacity style={styles.grantBtn} onPress={() => void startWebCamera()}>
+                    <Text style={styles.usePhotoText}>Enable camera</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.chooseAgainBtn} onPress={() => void handlePickImage()} disabled={isPreparing}>
+                    <Text style={styles.chooseAgainText}>Choose photo</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>}
+            </>
+          ) : !isFocused ? null : permission?.granted ? (
+            <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode="picture"
+              ratio="4:3" pictureSize={pictureSize} zoom={0} autofocus="on" animateShutter={false}
+              responsiveOrientationWhenOrientationLocked={false} enableTorch={torchEnabled}
+              onCameraReady={() => void handleCameraReady()}
+              onMountError={({ message }) => { setCameraReady(false); setScanMessage(`Camera unavailable: ${message}`); }} />
+          ) : (
+            <View style={styles.permissionContainer}>
+              <ScrollView contentContainerStyle={styles.permissionContent}>
+                <Text style={styles.permissionTitle}>Camera access</Text>
+                <Text style={styles.permissionSub}>Allow camera access to photograph an answer sheet.</Text>
+                <TouchableOpacity style={styles.grantBtn} onPress={requestPermission}>
+                  <Text style={styles.usePhotoText}>Allow camera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.chooseAgainBtn} onPress={() => void handlePickImage()} disabled={isPreparing}>
+                  <Text style={styles.chooseAgainText}>Choose photo</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
-          </View>
+          )}
+          {!pendingImageUri && (Platform.OS === 'web' ? webCamActive : permission?.granted) && <CameraGuide />}
         </View>
-      ) : (Platform.OS !== 'web' || webCamActive) ? (
-        <CameraOverlay
-          isAligned={isAligned}
-          torchEnabled={torchEnabled}
-          onToggleTorch={() => setTorchEnabled(!torchEnabled)}
-          onPickImage={() => void handlePickImage()}
-          onManualCapture={() => void handleCapturePhoto()}
-          pickDisabled={isProcessing}
-          captureDisabled={isProcessing || (Platform.OS !== 'web' && !cameraReady)}
-          statusText={scanMessage}
-        />
-      ) : null}
+      </View>
+
+      <View style={[styles.captureFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={styles.statusRow}>
+          {(isProcessing || isPreparing) && <ActivityIndicator size="small" color={ClayColors.primary} />}
+          <ScrollView contentContainerStyle={styles.statusContent}><Text accessibilityLiveRegion="polite" style={styles.statusText}>{scanMessage || captureGuidance}</Text></ScrollView>
+        </View>
+        <View style={styles.controlsSlot}>
+          {pendingImageUri ? <View style={styles.confirmActions}>
+            <TouchableOpacity style={styles.chooseAgainBtn} disabled={isPreparing}
+              onPress={() => {
+                if (isProcessing) { scanController.current?.abort(); setScanMessage('Cancelling...'); return; }
+                setCameraReady(false);
+                setPendingImageUri(undefined);
+                setScanMessage(captureGuidance);
+              }}>
+              <Text style={styles.chooseAgainText}>{isProcessing ? 'Cancel' : 'Retake'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity disabled={isProcessing || isPreparing} style={styles.usePhotoBtn}
+              onPress={() => void handlePerformScan(pendingImageUri)}>
+              <Text style={styles.usePhotoText}>{isProcessing ? 'Reading...' : 'Use Photo'}</Text>
+            </TouchableOpacity>
+          </View> : <CameraControls torchEnabled={torchEnabled}
+            torchAvailable={Platform.OS !== 'web' && cameraReady}
+            onToggleTorch={() => setTorchEnabled(!torchEnabled)}
+            onPickImage={() => void handlePickImage()} onManualCapture={() => void handleCapturePhoto()}
+            inputBusy={isPreparing || isProcessing}
+            captureDisabled={Platform.OS === 'web' ? !webCamActive : !cameraReady} />}
+        </View>
+      </View>
+      {Platform.OS === 'web' && <input ref={fileInputRef} type="file" accept="image/*"
+        aria-label="Answer sheet image" onChange={(event) => void handleWebFileChange(event)} style={{ display: 'none' }} />}
     </View>
   );
 }
 
-const webBtnStyle: React.CSSProperties = {
-  backgroundColor: '#4F46E5',
-  color: '#FFFFFF',
-  padding: '14px 24px',
-  borderRadius: '16px',
-  width: '100%',
-  textAlign: 'center',
-  fontWeight: '700',
-  fontSize: '14px',
-  cursor: 'pointer',
-  marginBottom: '12px',
-  boxSizing: 'border-box',
-  display: 'block',
-};
-
 const styles = StyleSheet.create({
   examPickerScreen: { flex: 1, backgroundColor: ClayColors.bg },
   examPickerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20 },
-  pickerEyebrow: { color: ClayColors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  pickerEyebrow: { color: ClayColors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 0 },
   pickerTitle: { color: ClayColors.textPrimary, fontSize: 26, fontWeight: '800', marginTop: 4 },
   pickerSubtitle: { color: ClayColors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 6, marginBottom: 22, maxWidth: 520 },
   pickerList: { gap: 12 },
@@ -424,138 +434,28 @@ const styles = StyleSheet.create({
   keyStatus: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },
   keyStatusText: { color: ClayColors.success, fontSize: 10, fontWeight: '700' },
   keyStatusWarning: { color: ClayColors.warning },
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  confirmOverlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-    justifyContent: 'flex-end',
-    padding: 20,
-    paddingBottom: 36,
-  },
-  confirmPanel: {
-    ...ClayCardStyle,
-    padding: 18,
-  },
-  confirmText: {
-    color: ClayColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  confirmActions: { flexDirection: 'row', gap: 10 },
-  chooseAgainBtn: {
-    flex: 1,
-    minHeight: 46,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
+  container: { flex: 1, backgroundColor: ClayColors.bg },
+  topHeader: { paddingHorizontal: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: ClayColors.bg },
+  headerCopy: { flex: 1, minWidth: 0 },
+  headerTool: { width: 44, height: 44 },
+  iconButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ClayColors.surfaceInset },
+  examTitle: { fontSize: 15, fontWeight: '800', color: ClayColors.textPrimary },
+  examMeta: { fontSize: 12, color: ClayColors.textSecondary, marginTop: 3 },
+  cameraArea: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: ClayColors.viewfinder },
+  cameraFrame: { overflow: 'hidden', backgroundColor: ClayColors.viewfinder },
+  captureFooter: { paddingHorizontal: 16, paddingTop: 10, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  statusRow: { height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  statusContent: { flexGrow: 1, justifyContent: 'center' },
+  statusText: { flex: 1, fontSize: 13, lineHeight: 18, textAlign: 'center', color: ClayColors.textPrimary },
+  controlsSlot: { height: 76, justifyContent: 'center' },
+  confirmActions: { flexDirection: 'row', gap: 12 },
+  chooseAgainBtn: { flex: 1, minHeight: 48, padding: 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ClayColors.surfaceInset, borderWidth: 1, borderColor: ClayColors.borderDarker },
   chooseAgainText: { color: ClayColors.textPrimary, fontWeight: '700' },
-  usePhotoBtn: {
-    ...ClayButtonStyle,
-    flex: 2,
-    minHeight: 46,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 14,
-  },
-  usePhotoText: { color: '#FFFFFF', fontWeight: '700' },
-  disabledBtn: { opacity: 0.55 },
-  permissionContainer: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: ClayColors.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    zIndex: 1,
-  },
-  permissionTitle: {
-    color: ClayColors.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  permissionSub: {
-    color: ClayColors.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 18,
-  },
-  grantBtn: {
-    ...ClayButtonStyle,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 16,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  grantBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  demoScanBtn: {
-    ...ClayCardStyle,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  demoScanText: {
-    color: ClayColors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  topHeader: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 10,
-    backgroundColor: 'rgba(240, 244, 248, 0.92)',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: '#E2E8F0',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  backBtnText: {
-    color: ClayColors.textPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  examTitle: {
-    color: ClayColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  simAlignBtn: {
-    ...ClayButtonStyle,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-  },
-  simAlignText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  usePhotoBtn: { ...ClayButtonStyle, flex: 2, padding: 12, minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  usePhotoText: { color: ClayColors.onPrimary, fontWeight: '700', textAlign: 'center' },
+  permissionContainer: { ...StyleSheet.absoluteFill, backgroundColor: ClayColors.bg },
+  permissionContent: { justifyContent: 'center', padding: 20, gap: 14 },
+  permissionTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', color: ClayColors.textPrimary },
+  permissionSub: { fontSize: 13, lineHeight: 19, textAlign: 'center', color: ClayColors.textSecondary },
+  grantBtn: { ...ClayButtonStyle, padding: 14, borderRadius: 14, alignItems: 'center' },
 });

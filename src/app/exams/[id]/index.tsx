@@ -1,5 +1,6 @@
+import { ActionButton as TouchableOpacity } from '../../../components/common/Controls';
 import React, { useEffect } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart3, ChevronRight, ClipboardCheck, FileText, ScanLine, Users } from 'lucide-react-native';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppShell } from '../../../components/common/AppShell';
@@ -41,21 +42,21 @@ export default function ExamWorkspaceScreen() {
       title: 'Scan Answer Sheet',
       detail: 'Capture or upload a completed sheet',
       icon: ScanLine,
-      color: '#4F46E5',
+      color: ClayColors.primary,
       onPress: () => router.push({ pathname: '/scan', params: { examId: exam.id } }),
     },
     {
       title: 'Edit Answer Key',
       detail: `${completedKeys}/${exam.total_questions} answers configured`,
       icon: ClipboardCheck,
-      color: '#06B6D4',
+      color: ClayColors.accent,
       onPress: () => router.push(`/exams/${exam.id}/answer-key` as Href),
     },
     {
       title: 'Print Answer Sheets',
       detail: 'Preview, save, print, or share PDF',
       icon: FileText,
-      color: '#10B981',
+      color: ClayColors.success,
       onPress: () => router.push({ pathname: '/answer-sheets', params: { examId: exam.id } }),
     },
     {
@@ -74,7 +75,7 @@ export default function ExamWorkspaceScreen() {
           <TouchableOpacity onPress={() => router.replace('/exams')}>
             <Text style={styles.breadcrumbLink}>Exams</Text>
           </TouchableOpacity>
-          <ChevronRight size={14} color="#64748B" />
+          <ChevronRight size={14} color={ClayColors.textMuted} />
           <Text style={styles.breadcrumbCurrent} numberOfLines={1}>{exam.title}</Text>
         </View>
 
@@ -90,15 +91,15 @@ export default function ExamWorkspaceScreen() {
         </View>
 
         <View style={styles.metricsRow}>
-          <View style={[styles.metric, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+          <View style={[styles.metric, { backgroundColor: ClayColors.cardIndigo, borderColor: ClayColors.indigoBorder }]}>
             <Text style={styles.metricValue}>{completedKeys}</Text>
             <Text style={styles.metricLabel}>Key answers</Text>
           </View>
-          <View style={[styles.metric, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+          <View style={[styles.metric, { backgroundColor: ClayColors.cardMint, borderColor: ClayColors.mintBorder }]}>
             <Text style={styles.metricValue}>{examScans.length}</Text>
             <Text style={styles.metricLabel}>Scans saved</Text>
           </View>
-          <View style={[styles.metric, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+          <View style={[styles.metric, { backgroundColor: ClayColors.cardAmber, borderColor: '#FDE68A' }]}>
             <Text style={styles.metricValue}>{exam.passing_score}%</Text>
             <Text style={styles.metricLabel}>Passing score</Text>
           </View>
@@ -109,19 +110,19 @@ export default function ExamWorkspaceScreen() {
           {actions.map(({ title, detail, icon: Icon, color, onPress }) => (
             <TouchableOpacity key={title} style={styles.actionCard} onPress={onPress}>
               <View style={[styles.actionIcon, { backgroundColor: color }]}>
-                <Icon size={22} color="#FFFFFF" strokeWidth={2.4} />
+                <Icon size={22} color={ClayColors.onPrimary} strokeWidth={2.4} />
               </View>
               <View style={styles.actionCopy}>
                 <Text style={styles.actionTitle}>{title}</Text>
                 <Text style={styles.actionDetail}>{detail}</Text>
               </View>
-              <ChevronRight size={19} color="#64748B" />
+              <ChevronRight size={19} color={ClayColors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.resultsBand}>
-          <BarChart3 size={24} color="#4F46E5" />
+          <BarChart3 size={24} color={ClayColors.primary} />
           <View style={styles.resultsCopy}>
             <Text style={styles.resultsTitle}>Results and Analytics</Text>
             <Text style={styles.resultsDetail}>Review saved scans and item analysis when ready.</Text>
@@ -138,42 +139,42 @@ export default function ExamWorkspaceScreen() {
 const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 1040, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  emptyTitle: { color: '#0F172A', fontSize: 20, fontWeight: '800' },
-  emptyText: { color: '#64748B', fontSize: 13, marginTop: 8, marginBottom: 20, textAlign: 'center' },
+  emptyTitle: { color: ClayColors.textPrimary, fontSize: 20, fontWeight: '800' },
+  emptyText: { color: ClayColors.textMuted, fontSize: 13, marginTop: 8, marginBottom: 20, textAlign: 'center' },
   primaryButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3.5,
-    borderBottomColor: '#3730A3',
+    borderBottomColor: ClayColors.primaryBevel,
   },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  primaryButtonText: { color: ClayColors.onPrimary, fontWeight: '800', fontSize: 14 },
   breadcrumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-  breadcrumbLink: { color: '#4F46E5', fontSize: 13, fontWeight: '800' },
-  breadcrumbCurrent: { color: '#64748B', fontSize: 13, flex: 1, fontWeight: '600' },
+  breadcrumbLink: { color: ClayColors.primary, fontSize: 13, fontWeight: '800' },
+  breadcrumbCurrent: { color: ClayColors.textMuted, fontSize: 13, flex: 1, fontWeight: '600' },
   examHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 },
   examHeading: { flex: 1 },
-  examTitle: { color: '#0F172A', fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  examDescription: { color: '#64748B', fontSize: 13, marginTop: 4, fontWeight: '600' },
+  examTitle: { color: ClayColors.textPrimary, fontSize: 26, fontWeight: '800', letterSpacing: 0 },
+  examDescription: { color: ClayColors.textMuted, fontSize: 13, marginTop: 4, fontWeight: '600' },
   itemBadge: {
     minWidth: 68,
     padding: 10,
     borderRadius: 16,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     alignItems: 'center',
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 3, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 2,
   },
-  itemBadgeValue: { color: '#4F46E5', fontSize: 20, fontWeight: '800' },
-  itemBadgeLabel: { color: '#64748B', fontSize: 10, fontWeight: '700' },
+  itemBadgeValue: { color: ClayColors.primary, fontSize: 20, fontWeight: '800' },
+  itemBadgeLabel: { color: ClayColors.textMuted, fontSize: 10, fontWeight: '700' },
   metricsRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
   metric: {
     flex: 1,
@@ -181,15 +182,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     padding: 14,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 3, height: 5 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
     elevation: 3,
   },
-  metricValue: { color: '#0F172A', fontSize: 22, fontWeight: '800' },
-  metricLabel: { color: '#475569', fontSize: 11, fontWeight: '700', marginTop: 4 },
-  sectionTitle: { color: '#0F172A', fontSize: 18, fontWeight: '800', marginBottom: 14, letterSpacing: -0.3 },
+  metricValue: { color: ClayColors.textPrimary, fontSize: 22, fontWeight: '800' },
+  metricLabel: { color: ClayColors.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  sectionTitle: { color: ClayColors.textPrimary, fontSize: 18, fontWeight: '800', marginBottom: 14, letterSpacing: 0 },
   actionGrid: { gap: 12 },
   actionCard: {
     ...ClayCardStyle,
@@ -214,8 +215,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   actionCopy: { flex: 1 },
-  actionTitle: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
-  actionDetail: { color: '#64748B', fontSize: 12, marginTop: 2, fontWeight: '600' },
+  actionTitle: { color: ClayColors.textPrimary, fontSize: 15, fontWeight: '800' },
+  actionDetail: { color: ClayColors.textMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
   resultsBand: {
     ...ClayCardStyle,
     marginTop: 24,
@@ -225,15 +226,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   resultsCopy: { flex: 1 },
-  resultsTitle: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
-  resultsDetail: { color: '#64748B', fontSize: 11, marginTop: 2 },
+  resultsTitle: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800' },
+  resultsDetail: { color: ClayColors.textMuted, fontSize: 11, marginTop: 2 },
   resultsBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
   },
-  resultsLink: { color: '#4F46E5', fontSize: 12, fontWeight: '800' },
+  resultsLink: { color: ClayColors.primary, fontSize: 12, fontWeight: '800' },
 });

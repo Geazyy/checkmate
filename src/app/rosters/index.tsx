@@ -1,5 +1,6 @@
+import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Plus, Search, UserRound, X } from 'lucide-react-native';
 import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
@@ -148,7 +149,7 @@ export default function RosterScreen() {
               setIsAdding(false);
               setClassError('');
             }}>
-            {isAddingClass ? <X size={17} color="#4F46E5" /> : <Plus size={17} color="#4F46E5" strokeWidth={2.4} />}
+            {isAddingClass ? <X size={17} color={ClayColors.primary} /> : <Plus size={17} color={ClayColors.primary} strokeWidth={2.4} />}
             <Text style={styles.secondaryBtnText}>{isAddingClass ? 'Close' : 'Add Class'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -158,7 +159,7 @@ export default function RosterScreen() {
               setIsAdding((current) => !current);
               setIsAddingClass(false);
             }}>
-            {isAdding ? <X size={17} color="#FFFFFF" /> : <Plus size={17} color="#FFFFFF" strokeWidth={2.4} />}
+            {isAdding ? <X size={17} color={ClayColors.onPrimary} /> : <Plus size={17} color={ClayColors.onPrimary} strokeWidth={2.4} />}
             <Text style={styles.addBtnText}>{isAdding ? 'Close' : 'Add Student'}</Text>
           </TouchableOpacity>
         </View>
@@ -171,7 +172,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Chemistry 201 - Sec B"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={className}
               onChangeText={(value) => {
                 setClassName(value);
@@ -182,7 +183,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Chemistry"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={classSubject}
               onChangeText={(value) => {
                 setClassSubject(value);
@@ -193,7 +194,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="2026-2027"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={academicYear}
               onChangeText={setAcademicYear}
             />
@@ -220,18 +221,18 @@ export default function RosterScreen() {
               </Text>
             </View>
             {isClassPickerOpen
-              ? <ChevronUp size={20} color="#4F46E5" />
-              : <ChevronDown size={20} color="#4F46E5" />}
+              ? <ChevronUp size={20} color={ClayColors.primary} />
+              : <ChevronDown size={20} color={ClayColors.primary} />}
           </TouchableOpacity>
 
           {isClassPickerOpen && (
             <View style={styles.classPickerPanel}>
               <View style={styles.classSearchBar}>
-                <Search size={17} color="#64748B" />
+                <Search size={17} color={ClayColors.textMuted} />
                 <TextInput
                   style={styles.classSearchInput}
                   placeholder="Search class or subject"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={ClayColors.textMuted}
                   value={classQuery}
                   onChangeText={setClassQuery}
                   autoFocus
@@ -249,7 +250,7 @@ export default function RosterScreen() {
                   <Text style={styles.classOptionName}>All Classes</Text>
                   <Text style={styles.classOptionMeta}>{classes.length} class sections</Text>
                 </View>
-                {!selectedClassId && <Check size={18} color="#4F46E5" />}
+                {!selectedClassId && <Check size={18} color={ClayColors.primary} />}
               </TouchableOpacity>
               {filteredClasses.map((cls) => (
                 <TouchableOpacity
@@ -262,7 +263,7 @@ export default function RosterScreen() {
                       {cls.subject} • {(studentsByClassId[cls.id] ?? []).length} students
                     </Text>
                   </View>
-                  {selectedClassId === cls.id && <Check size={18} color="#4F46E5" />}
+                  {selectedClassId === cls.id && <Check size={18} color={ClayColors.primary} />}
                 </TouchableOpacity>
               ))}
               {filteredClasses.length === 0 && (
@@ -285,7 +286,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g. 2026-045"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={studentNum}
               onChangeText={setStudentNum}
             />
@@ -293,7 +294,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="First Name"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={firstName}
               onChangeText={setFirstName}
             />
@@ -301,7 +302,7 @@ export default function RosterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Last Name"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={ClayColors.textMuted}
               value={lastName}
               onChangeText={setLastName}
             />
@@ -314,11 +315,11 @@ export default function RosterScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchBar}>
-          <Search size={18} color="#64748B" />
+          <Search size={18} color={ClayColors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search student name or ID"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={ClayColors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -348,13 +349,13 @@ export default function RosterScreen() {
               </Text>
             </View>
 
-            <UserRound size={18} color="#64748B" />
+            <UserRound size={18} color={ClayColors.textMuted} />
           </View>
         ))}
 
         {filteredStudents.length === 0 && (
           <View style={styles.emptyState}>
-            <Search size={28} color="#94A3B8" />
+            <Search size={28} color={ClayColors.textMuted} />
             <Text style={styles.emptyTitle}>No students found</Text>
             <Text style={styles.emptyText}>Try another name or student ID.</Text>
           </View>
@@ -374,37 +375,37 @@ const styles = StyleSheet.create({
   },
   headingCopy: { flex: 1 },
   eyebrowChip: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     marginBottom: 6,
   },
-  eyebrow: { color: '#4F46E5', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  sectionTitle: { color: '#0F172A', fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  sectionSub: { color: '#64748B', fontSize: 13, marginTop: 4 },
+  eyebrow: { color: ClayColors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0 },
+  sectionTitle: { color: ClayColors.textPrimary, fontSize: 26, fontWeight: '800', letterSpacing: 0 },
+  sectionSub: { color: ClayColors.textMuted, fontSize: 13, marginTop: 4 },
   pageActions: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   secondaryBtn: {
     minHeight: 46,
     flex: 1,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     borderRadius: 16,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
-  secondaryBtnText: { color: '#4F46E5', fontSize: 13, fontWeight: '800' },
+  secondaryBtnText: { color: ClayColors.primary, fontSize: 13, fontWeight: '800' },
   addBtn: {
     minHeight: 46,
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     paddingHorizontal: 16,
     borderRadius: 16,
     flexDirection: 'row',
@@ -413,45 +414,45 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3.5,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
-  addBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  addBtnText: { color: ClayColors.onPrimary, fontSize: 13, fontWeight: '800' },
   disabledBtn: { opacity: 0.5 },
   classSelectorCard: {
     ...ClayCardStyle,
     padding: 18,
     marginBottom: 20,
   },
-  classSelectorTitle: { color: '#4F46E5', fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
+  classSelectorTitle: { color: ClayColors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0, marginBottom: 8 },
   classPickerButton: {
     minHeight: 60,
-    backgroundColor: '#EBF0F6',
+    backgroundColor: ClayColors.input,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  classPickerButtonOpen: { borderColor: '#4F46E5', backgroundColor: '#EEF2FF' },
+  classPickerButtonOpen: { borderColor: ClayColors.primary, backgroundColor: ClayColors.cardIndigo },
   classPickerCopy: { flex: 1, minWidth: 0 },
-  classPickerValue: { color: '#0F172A', fontSize: 15, fontWeight: '800' },
-  classPickerMeta: { color: '#64748B', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  classPickerValue: { color: ClayColors.textPrimary, fontSize: 15, fontWeight: '800' },
+  classPickerMeta: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 2 },
   classPickerPanel: {
     marginTop: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     borderRadius: 16,
     padding: 10,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -464,12 +465,12 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: '#EBF0F6',
+    backgroundColor: ClayColors.input,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     marginBottom: 8,
   },
-  classSearchInput: { flex: 1, color: '#0F172A', fontSize: 13, paddingVertical: 8, fontWeight: '600' },
+  classSearchInput: { flex: 1, color: ClayColors.textPrimary, fontSize: 13, paddingVertical: 8, fontWeight: '600' },
   classOptionsList: { maxHeight: 238 },
   classOption: {
     minHeight: 52,
@@ -481,14 +482,14 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 4,
   },
-  classOptionActive: { backgroundColor: '#EEF2FF' },
+  classOptionActive: { backgroundColor: ClayColors.cardIndigo },
   classOptionCopy: { flex: 1, minWidth: 0 },
-  classOptionName: { color: '#0F172A', fontSize: 13, fontWeight: '800' },
-  classOptionMeta: { color: '#64748B', fontSize: 11, marginTop: 2, fontWeight: '600' },
+  classOptionName: { color: ClayColors.textPrimary, fontSize: 13, fontWeight: '800' },
+  classOptionMeta: { color: ClayColors.textMuted, fontSize: 11, marginTop: 2, fontWeight: '600' },
   noClassResults: { paddingVertical: 24, alignItems: 'center' },
-  noClassResultsText: { color: '#64748B', fontSize: 12, fontWeight: '600' },
+  noClassResultsText: { color: ClayColors.textMuted, fontSize: 12, fontWeight: '600' },
   searchBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderRadius: 20,
     paddingHorizontal: 16,
     minHeight: 50,
@@ -498,7 +499,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 3, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -509,47 +510,47 @@ const styles = StyleSheet.create({
         } as any)
       : {}),
   },
-  searchInput: { flex: 1, color: '#0F172A', fontSize: 13, paddingVertical: 10, fontWeight: '600' },
+  searchInput: { flex: 1, minWidth: 0, borderWidth: 0, backgroundColor: 'transparent', color: ClayColors.textPrimary, fontSize: 13, paddingVertical: 10, fontWeight: '600' },
   rosterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  rosterTitle: { color: '#0F172A', fontSize: 16, fontWeight: '800' },
-  rosterCount: { color: '#64748B', fontSize: 12, fontWeight: '700' },
+  rosterTitle: { color: ClayColors.textPrimary, fontSize: 16, fontWeight: '800' },
+  rosterCount: { color: ClayColors.textMuted, fontSize: 12, fontWeight: '700' },
   formCard: {
     ...ClayCardStyle,
     padding: 20,
     marginBottom: 20,
   },
-  formTitle: { color: '#0F172A', fontSize: 16, fontWeight: '800', marginBottom: 4 },
-  formSub: { color: '#64748B', fontSize: 12, marginBottom: 14 },
-  inputLabel: { color: '#0F172A', fontSize: 12, fontWeight: '800', marginBottom: 6 },
+  formTitle: { color: ClayColors.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  formSub: { color: ClayColors.textMuted, fontSize: 12, marginBottom: 14 },
+  inputLabel: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '800', marginBottom: 6 },
   input: {
-    backgroundColor: '#EBF0F6',
+    backgroundColor: ClayColors.input,
     borderRadius: 16,
     padding: 14,
-    color: '#0F172A',
+    color: ClayColors.textPrimary,
     fontSize: 13,
     marginBottom: 14,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     fontWeight: '600',
   },
   submitBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: ClayColors.success,
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3.5,
-    borderBottomColor: '#047857',
-    shadowColor: '#10B981',
+    borderBottomColor: ClayColors.success,
+    shadowColor: ClayColors.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
     marginTop: 4,
   },
-  submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-  formError: { color: '#EF4444', fontSize: 12, fontWeight: '700', marginBottom: 10 },
+  submitText: { color: ClayColors.onPrimary, fontWeight: '800', fontSize: 14 },
+  formError: { color: ClayColors.danger, fontSize: 12, fontWeight: '700', marginBottom: 10 },
   studentCard: {
     ...ClayCardStyle,
     padding: 14,
@@ -561,26 +562,26 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
-  avatarText: { color: '#4F46E5', fontSize: 14, fontWeight: '800' },
+  avatarText: { color: ClayColors.primary, fontSize: 14, fontWeight: '800' },
   studentDetails: { flex: 1 },
-  studentName: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
-  studentSub: { color: '#64748B', fontSize: 12, marginTop: 2, fontWeight: '600' },
+  studentName: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800' },
+  studentSub: { color: ClayColors.textMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: ClayColors.borderSubtle,
   },
-  emptyTitle: { color: '#0F172A', fontSize: 15, fontWeight: '800', marginTop: 12 },
-  emptyText: { color: '#64748B', fontSize: 12, marginTop: 4 },
+  emptyTitle: { color: ClayColors.textPrimary, fontSize: 15, fontWeight: '800', marginTop: 12 },
+  emptyText: { color: ClayColors.textMuted, fontSize: 12, marginTop: 4 },
 });

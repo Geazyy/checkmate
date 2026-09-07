@@ -1,3 +1,4 @@
+import { ClayColors } from '../constants/theme';
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +13,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F0F4F8' },
+          contentStyle: { backgroundColor: ClayColors.bg },
           animation: 'slide_from_right',
         }}>
         <Stack.Screen name="index" />

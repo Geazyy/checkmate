@@ -1,5 +1,6 @@
+import { ActionButton as TouchableOpacity } from '../../../components/common/Controls';
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppHeader } from '../../../components/common/Header';
 import { ScoreHistogram } from '../../../components/analytics/ScoreHistogram';
@@ -63,12 +64,12 @@ export default function AnalyticsDashboardScreen() {
           </View>
 
           <View style={styles.metricCard}>
-            <Text style={[styles.metricVal, { color: '#10B981' }]}>{analytics.passing_rate}%</Text>
+            <Text style={[styles.metricVal, { color: ClayColors.success }]}>{analytics.passing_rate}%</Text>
             <Text style={styles.metricLbl}>Pass Rate</Text>
           </View>
 
           <View style={styles.metricCard}>
-            <Text style={[styles.metricVal, { color: '#06B6D4' }]}>
+            <Text style={[styles.metricVal, { color: ClayColors.accent }]}>
               {analytics.kr20_reliability}
             </Text>
             <Text style={styles.metricLbl}>KR-20 Reliability</Text>
@@ -84,13 +85,13 @@ export default function AnalyticsDashboardScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.exportBtn, { backgroundColor: '#4F46E5' }]}
+            style={[styles.exportBtn, { backgroundColor: ClayColors.primary }]}
             onPress={handleExportPDF}>
             <Text style={styles.exportBtnText}>📕 Export PDF</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.exportBtn, { backgroundColor: '#10B981' }]}
+            style={[styles.exportBtn, { backgroundColor: ClayColors.success }]}
             onPress={handleExportExcel}>
             <Text style={styles.exportBtnText}>📊 Export Excel</Text>
           </TouchableOpacity>
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   scanNowText: {
-    color: '#FFFFFF',
+    color: ClayColors.onPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   exportBtnText: {
-    color: '#FFFFFF',
+    color: ClayColors.onPrimary,
     fontSize: 11,
     fontWeight: '700',
   },

@@ -1,5 +1,6 @@
+import { ActionButton as TouchableOpacity } from '../components/common/Controls';
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ArrowRight, BookOpen, CheckCircle2, Plus, ScanLine, Users } from 'lucide-react-native';
 import { Href, useRouter } from 'expo-router';
 import { AppShell } from '../components/common/AppShell';
@@ -34,53 +35,53 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <TouchableOpacity style={styles.scanPrimary} onPress={startScan}>
-            <ScanLine size={20} color="#FFFFFF" strokeWidth={2.4} />
+            <ScanLine size={20} color={ClayColors.onPrimary} strokeWidth={2.4} />
             <Text style={styles.scanPrimaryText}>Scan sheet</Text>
           </TouchableOpacity>
         </View>
 
         <View style={[styles.quickRow, wide && styles.quickRowWide]}>
-          <TouchableOpacity style={[styles.quickAction, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]} onPress={() => router.push('/exams')}>
-            <View style={[styles.quickIcon, { backgroundColor: '#4F46E5' }]}>
-              <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
+          <TouchableOpacity style={[styles.quickAction, { backgroundColor: ClayColors.cardIndigo, borderColor: ClayColors.indigoBorder }]} onPress={() => router.push('/exams')}>
+            <View style={[styles.quickIcon, { backgroundColor: ClayColors.primary }]}>
+              <Plus size={20} color={ClayColors.onPrimary} strokeWidth={2.5} />
             </View>
             <View style={styles.quickCopy}>
               <Text style={styles.quickTitle}>Create Exam</Text>
               <Text style={styles.quickSub}>Build a new answer key</Text>
             </View>
-            <ArrowRight size={18} color="#4F46E5" />
+            <ArrowRight size={18} color={ClayColors.primary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.quickAction, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]} onPress={() => router.push('/rosters')}>
-            <View style={[styles.quickIcon, { backgroundColor: '#0284C7' }]}>
-              <Users size={20} color="#FFFFFF" strokeWidth={2.5} />
+          <TouchableOpacity style={[styles.quickAction, { backgroundColor: ClayColors.cardSky, borderColor: ClayColors.skyBorder }]} onPress={() => router.push('/rosters')}>
+            <View style={[styles.quickIcon, { backgroundColor: ClayColors.skyText }]}>
+              <Users size={20} color={ClayColors.onPrimary} strokeWidth={2.5} />
             </View>
             <View style={styles.quickCopy}>
               <Text style={styles.quickTitle}>Manage Classes</Text>
               <Text style={styles.quickSub}>Review student rosters</Text>
             </View>
-            <ArrowRight size={18} color="#0284C7" />
+            <ArrowRight size={18} color={ClayColors.skyText} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#4F46E5' }]}>
-              <BookOpen size={18} color="#FFFFFF" />
+          <View style={[styles.statCard, { backgroundColor: ClayColors.cardIndigo, borderColor: ClayColors.indigoBorder }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: ClayColors.primary }]}>
+              <BookOpen size={18} color={ClayColors.onPrimary} />
             </View>
             <Text style={styles.statValue}>{activeExams.length}</Text>
             <Text style={styles.statLabel}>Exams</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#10B981' }]}>
-              <CheckCircle2 size={18} color="#FFFFFF" />
+          <View style={[styles.statCard, { backgroundColor: ClayColors.cardMint, borderColor: ClayColors.mintBorder }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: ClayColors.success }]}>
+              <CheckCircle2 size={18} color={ClayColors.onPrimary} />
             </View>
             <Text style={styles.statValue}>{gradedCount}</Text>
             <Text style={styles.statLabel}>Graded sheets</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#0284C7' }]}>
-              <Users size={18} color="#FFFFFF" />
+          <View style={[styles.statCard, { backgroundColor: ClayColors.cardSky, borderColor: ClayColors.skyBorder }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: ClayColors.skyText }]}>
+              <Users size={18} color={ClayColors.onPrimary} />
             </View>
             <Text style={styles.statValue}>{classes.length}</Text>
             <Text style={styles.statLabel}>Classes</Text>
@@ -94,7 +95,7 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity style={styles.textButton} onPress={() => router.push('/exams')}>
             <Text style={styles.textButtonLabel}>View all</Text>
-            <ArrowRight size={15} color="#4F46E5" />
+            <ArrowRight size={15} color={ClayColors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -103,7 +104,7 @@ export default function DashboardScreen() {
             <View key={exam.id} style={[styles.examCard, wide && styles.examCardWide]}>
               <View style={styles.examHeadingRow}>
                 <View style={styles.examIconBadge}>
-                  <BookOpen size={18} color="#4F46E5" />
+                  <BookOpen size={18} color={ClayColors.primary} />
                 </View>
                 <View style={styles.itemBadge}>
                   <Text style={styles.itemCount}>{exam.total_questions} items</Text>
@@ -119,7 +120,7 @@ export default function DashboardScreen() {
                     router.push(`/exams/${exam.id}` as Href);
                   }}>
                   <Text style={styles.openExamText}>Open workspace</Text>
-                  <ArrowRight size={15} color="#4F46E5" />
+                  <ArrowRight size={15} color={ClayColors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   accessibilityLabel={`Scan ${exam.title}`}
@@ -128,7 +129,7 @@ export default function DashboardScreen() {
                     setActiveExam(exam);
                     router.push({ pathname: '/scan', params: { examId: exam.id } });
                   }}>
-                  <ScanLine size={18} color="#FFFFFF" strokeWidth={2.4} />
+                  <ScanLine size={18} color={ClayColors.onPrimary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -157,7 +158,7 @@ export default function DashboardScreen() {
                 <Text style={styles.className}>{classSection.name}</Text>
                 <Text style={styles.classSub}>{classSection.subject} · {classSection.student_count ?? 0} students</Text>
               </View>
-              <ArrowRight size={18} color="#64748B" />
+              <ArrowRight size={18} color={ClayColors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -171,23 +172,23 @@ const styles = StyleSheet.create({
   introRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 },
   introCopy: { flex: 1 },
   eyebrowChip: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     marginBottom: 6,
   },
-  eyebrow: { color: '#4F46E5', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  title: { color: '#0F172A', fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  subtitle: { color: '#64748B', fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 520 },
+  eyebrow: { color: ClayColors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0 },
+  title: { color: ClayColors.textPrimary, fontSize: 26, fontWeight: '800', letterSpacing: 0 },
+  subtitle: { color: ClayColors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 4, maxWidth: 520 },
   scanPrimary: {
     minHeight: 48,
     paddingHorizontal: 18,
     borderRadius: 18,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -195,14 +196,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 4,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 5,
   },
-  scanPrimaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  scanPrimaryText: { color: ClayColors.onPrimary, fontSize: 13, fontWeight: '800' },
   quickRow: { gap: 12, marginBottom: 16 },
   quickRowWide: { flexDirection: 'row' },
   quickAction: {
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 4, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -240,8 +241,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   quickCopy: { flex: 1 },
-  quickTitle: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
-  quickSub: { color: '#64748B', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  quickTitle: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800' },
+  quickSub: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
   statCard: {
     flex: 1,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: 14,
     justifyContent: 'space-between',
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 4, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -268,13 +269,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: { color: '#0F172A', fontSize: 24, fontWeight: '800', marginTop: 8 },
-  statLabel: { color: '#475569', fontSize: 11, fontWeight: '700' },
+  statValue: { color: ClayColors.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 8 },
+  statLabel: { color: ClayColors.textSecondary, fontSize: 11, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 14, marginTop: 6 },
-  sectionTitle: { color: '#0F172A', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  sectionSub: { color: '#64748B', fontSize: 11, marginTop: 2 },
+  sectionTitle: { color: ClayColors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: 0 },
+  sectionSub: { color: ClayColors.textMuted, fontSize: 11, marginTop: 2 },
   textButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  textButtonLabel: { color: '#4F46E5', fontSize: 12, fontWeight: '800' },
+  textButtonLabel: { color: ClayColors.primary, fontSize: 12, fontWeight: '800' },
   examGrid: { gap: 14, marginBottom: 30 },
   examGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
   examCard: {
@@ -287,49 +288,49 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: ClayColors.surfaceInset,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: ClayColors.borderSubtle,
   },
-  itemCount: { color: '#64748B', fontSize: 10, fontWeight: '800' },
-  examTitle: { color: '#0F172A', fontSize: 16, fontWeight: '800', marginTop: 14 },
-  examSub: { color: '#64748B', fontSize: 11, fontWeight: '600', marginTop: 3 },
+  itemCount: { color: ClayColors.textMuted, fontSize: 10, fontWeight: '800' },
+  examTitle: { color: ClayColors.textPrimary, fontSize: 16, fontWeight: '800', marginTop: 14 },
+  examSub: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 3 },
   examFooter: { flexDirection: 'row', gap: 10, marginTop: 18 },
   openExam: {
     flex: 1,
     minHeight: 42,
     borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: ClayColors.cardIndigo,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: ClayColors.indigoBorder,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  openExamText: { color: '#4F46E5', fontSize: 12, fontWeight: '800' },
+  openExamText: { color: ClayColors.primary, fontSize: 12, fontWeight: '800' },
   iconButton: {
     width: 44,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#4F46E5',
+    backgroundColor: ClayColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderTopWidth: 2,
     borderTopColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 3,
-    borderBottomColor: '#3730A3',
-    shadowColor: '#4F46E5',
+    borderBottomColor: ClayColors.primaryBevel,
+    shadowColor: ClayColors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -348,14 +349,14 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 16,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: ClayColors.cardSky,
     borderWidth: 1.5,
-    borderColor: '#BAE6FD',
+    borderColor: ClayColors.skyBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  classInitial: { color: '#0284C7', fontSize: 16, fontWeight: '800' },
+  classInitial: { color: ClayColors.skyText, fontSize: 16, fontWeight: '800' },
   classCopy: { flex: 1 },
-  className: { color: '#0F172A', fontSize: 13, fontWeight: '800' },
-  classSub: { color: '#64748B', fontSize: 11, marginTop: 2 },
+  className: { color: ClayColors.textPrimary, fontSize: 13, fontWeight: '800' },
+  classSub: { color: ClayColors.textMuted, fontSize: 11, marginTop: 2 },
 });

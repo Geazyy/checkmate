@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+import { ClayColors } from '../../constants/theme';
 import { CheckCircle2 } from 'lucide-react-native';
 
 export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ title = 'CheckMate', compact = false }) => {
@@ -20,7 +20,7 @@ export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ tit
 
       <View style={styles.rightGroup}>
         <View style={styles.offlineChip}>
-          <CheckCircle2 size={13} color="#10B981" />
+          <CheckCircle2 size={13} color={ClayColors.success} />
           <Text style={styles.offlineChipText}>Local Mode</Text>
         </View>
       </View>
@@ -42,14 +42,14 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   brandBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.95)',
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 3, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: ClayColors.primary,
-    letterSpacing: -0.3,
+    letterSpacing: 0,
   },
   welcomeText: {
     fontSize: 12,
@@ -80,14 +80,14 @@ const styles = StyleSheet.create({
   offlineChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: ClayColors.cardMint,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: '#A7F3D0',
+    borderColor: ClayColors.mintBorder,
     gap: 6,
-    shadowColor: '#8CA0BA',
+    shadowColor: ClayColors.shadow,
     shadowOffset: { width: 2, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   offlineChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: ClayColors.success,
   },
 });

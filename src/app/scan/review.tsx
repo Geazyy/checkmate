@@ -1,5 +1,6 @@
+import { ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Check, RotateCcw, X } from 'lucide-react-native';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +8,8 @@ import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
 import { OPTION_LETTERS } from '../../services/omr/scannerEngine';
 import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
+import { finishReviewTiming } from '../../services/omr/scanTiming';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 export default function ScanReviewScreen() {
   const router = useRouter();
@@ -18,11 +21,19 @@ export default function ScanReviewScreen() {
     confirmLastScannedResult,
     clearLastScannedResult,
   } = useScanStore();
-  const { activeAnswerKeys } = useExamStore();
+  const answerKeysByExamId = useExamStore((state) => state.answerKeysByExamId);
+  const activeAnswerKeys = answerKeysByExamId[lastScannedResult?.exam_id ?? examId ?? ''] ?? [];
   const keyMap = new Map(activeAnswerKeys.map((key) => [key.question_number, key]));
+  const { showConfidence, highlightFlagged } = useSettingsStore();
+  const resultId = lastScannedResult?.id;
+  useEffect(() => {
+    if (!resultId) return;
+    const id = requestAnimationFrame(() => finishReviewTiming(resultId));
+    return () => cancelAnimationFrame(id);
+  }, [resultId]);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 220 });
   const [imageAspect, setImageAspect] = useState(0.75);
-  const items = lastScannedResult?.items || [];
+  const items = useMemo(() => lastScannedResult?.items ?? [], [lastScannedResult?.items]);
   const previewUri = lastScannedResult?.cropped_sheet_image_url;
   useEffect(() => {
     if (!previewUri) return;
@@ -53,7 +64,7 @@ export default function ScanReviewScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No scan result available.</Text>
-        <TouchableOpacity style={styles.btn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.btn} onPress={() => router.replace('/scan')}>
           <Text style={styles.btnText}>Return to Scanner</Text>
         </TouchableOpacity>
       </View>
@@ -72,7 +83,7 @@ export default function ScanReviewScreen() {
 
       const correctOptions = keyMap.get(qNum)?.correct_options || [];
       const isCorrect =
-        updated.length === correctOptions.length &&
+        updated.length > 0 && updated.length === correctOptions.length &&
         updated.every((option) => correctOptions.includes(option));
 
       return {
@@ -103,7 +114,7 @@ export default function ScanReviewScreen() {
 
   const handleRescan = () => {
     clearLastScannedResult();
-    router.back();
+    router.replace({ pathname: '/scan', params: { examId: lastScannedResult.exam_id } });
   };
 
   const handleConfirm = () => {
@@ -117,7 +128,7 @@ export default function ScanReviewScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
-      {/* Top Banner */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.reviewContent}>
       <View style={styles.topCard}>
         <View style={styles.studentInfo}>
           <Text style={styles.studentName}>
@@ -143,11 +154,11 @@ export default function ScanReviewScreen() {
 
       <View style={styles.summaryBar}>
         {[
-          ['Correct', summary.correct, '#047857'],
-          ['Incorrect', summary.incorrect, '#DC2626'],
-          ['Blank', summary.blank, '#64748B'],
-          ['Multiple', summary.multiple, '#D97706'],
-          ['Uncertain', summary.uncertain, '#D97706'],
+          ['Correct', summary.correct, ClayColors.success],
+          ['Incorrect', summary.incorrect, ClayColors.danger],
+          ['Blank', summary.blank, ClayColors.textMuted],
+          ['Multiple', summary.multiple, ClayColors.warning],
+          ['Uncertain', summary.uncertain, ClayColors.warning],
         ].map(([label, value, color]) => (
           <View style={styles.summaryItem} key={String(label)}>
             <Text style={[styles.summaryValue, { color: String(color) }]}>{String(value)}</Text>
@@ -169,7 +180,7 @@ export default function ScanReviewScreen() {
             style={StyleSheet.absoluteFill}
             resizeMode="contain"
           />
-          {items
+          {highlightFlagged && items
             .filter((item) => item.detection_status !== 'detected' && item.source_region)
             .map((item) => {
               const region = item.source_region!;
@@ -193,7 +204,7 @@ export default function ScanReviewScreen() {
       )}
 
       {/* Detected Bubbles Review Grid */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.gridList}>
+      <View style={styles.gridList}>
         {items.map((item) => {
           const detectionStatus = item.detection_status
             ?? (item.is_ambiguous ? 'uncertain' : item.detected_options.length ? 'detected' : 'blank');
@@ -207,6 +218,20 @@ export default function ScanReviewScreen() {
             ]}>
             <Text style={styles.itemNum}>Q{item.question_number}</Text>
 
+            <View style={styles.statusIndicator}>
+              {detectionStatus !== 'detected' && (
+                <View style={styles.warningLabel}>
+                  <AlertTriangle size={11} color={ClayColors.warning} />
+                  <Text style={styles.flagText}>{detectionStatus}</Text>
+                </View>
+              )}
+              {showConfidence && typeof item.confidence === 'number' && (
+                <Text style={styles.confidenceText}>{Math.round(item.confidence * 100)}% conf</Text>
+              )}
+              {!item.is_correct && <Text style={styles.correctAnswerText}>Key {keyMap.get(item.question_number)?.correct_options.join(', ') || '-'}</Text>}
+              {item.is_correct ? <Check size={17} color={ClayColors.success} /> : <X size={17} color={ClayColors.danger} />}
+            </View>
+
             <View style={styles.optionsRow}>
               {(Object.keys(item.fill_ratios).length
                 ? Object.keys(item.fill_ratios)
@@ -215,6 +240,8 @@ export default function ScanReviewScreen() {
                 const isSelected = item.detected_options.includes(opt);
                 return (
                   <TouchableOpacity
+                    accessibilityLabel={`Question ${item.question_number}, answer ${opt}`}
+                    accessibilityState={{ selected: isSelected }}
                     key={opt}
                     style={[
                       styles.bubbleBtn,
@@ -227,7 +254,7 @@ export default function ScanReviewScreen() {
                     <Text
                       style={[
                         styles.bubbleText,
-                        isSelected && { color: '#FFFFFF', fontWeight: '700' },
+                        isSelected && { color: ClayColors.onPrimary, fontWeight: '700' },
                       ]}>
                       {opt}
                     </Text>
@@ -236,29 +263,9 @@ export default function ScanReviewScreen() {
               })}
             </View>
 
-            <View style={styles.statusIndicator}>
-              {detectionStatus !== 'detected' && (
-                <View style={styles.warningLabel}>
-                  <AlertTriangle size={11} color="#D97706" />
-                  <Text style={styles.flagText}>{detectionStatus}</Text>
-                </View>
-              )}
-              {typeof item.confidence === 'number' && (
-                <Text style={styles.confidenceText}>
-                  {Math.round(item.confidence * 100)}% conf
-                </Text>
-              )}
-              {!item.is_correct && (
-                <Text style={styles.correctAnswerText}>
-                  Key {keyMap.get(item.question_number)?.correct_options.join(', ') || '-'}
-                </Text>
-              )}
-              {item.is_correct
-                ? <Check size={17} strokeWidth={3} color="#047857" />
-                : <X size={17} strokeWidth={3} color="#DC2626" />}
-            </View>
           </View>
         );})}
+      </View>
       </ScrollView>
 
       {/* Action Footer */}
@@ -269,7 +276,7 @@ export default function ScanReviewScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleConfirm}>
-          <Check size={17} color="#FFFFFF" />
+          <Check size={17} color={ClayColors.onPrimary} />
           <Text style={styles.saveText}>Grade Answers</Text>
         </TouchableOpacity>
       </View>
@@ -282,6 +289,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ClayColors.bg,
   },
+  reviewContent: { width: '100%', maxWidth: 850, alignSelf: 'center', paddingBottom: 12 },
   emptyContainer: {
     flex: 1,
     backgroundColor: ClayColors.bg,
@@ -290,7 +298,7 @@ const styles = StyleSheet.create({
   },
   emptyText: { color: ClayColors.textSecondary, fontSize: 16, marginBottom: 16 },
   btn: { ...ClayButtonStyle, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16 },
-  btnText: { color: '#FFFFFF', fontWeight: '700' },
+  btnText: { color: ClayColors.onPrimary, fontWeight: '700' },
   topCard: {
     ...ClayCardStyle,
     marginHorizontal: 16,
@@ -309,10 +317,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: ClayColors.mintBorder,
   },
-  scorePillText: { color: '#047857', fontSize: 17, fontWeight: '800' },
-  percentageText: { color: '#047857', fontSize: 11, fontWeight: '700' },
+  scorePillText: { color: ClayColors.success, fontSize: 17, fontWeight: '800' },
+  percentageText: { color: ClayColors.success, fontSize: 11, fontWeight: '700' },
   sectionHeader: {
     color: ClayColors.textSecondary,
     fontSize: 13,
@@ -325,24 +333,24 @@ const styles = StyleSheet.create({
     height: 180,
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: ClayColors.borderSubtle,
   },
   warningRegion: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#D97706',
+    borderColor: ClayColors.warning,
     backgroundColor: 'rgba(217, 119, 6, 0.18)',
   },
   warningRegionLabel: {
     position: 'absolute',
     left: -1,
     top: -14,
-    color: '#D97706',
-    backgroundColor: '#FFFFFF',
+    color: ClayColors.warning,
+    backgroundColor: ClayColors.onPrimary,
     fontSize: 9,
     fontWeight: '800',
   },
@@ -352,7 +360,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderTopWidth: 1.5,
     borderBottomWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: ClayColors.borderSubtle,
     paddingVertical: 9,
   },
   summaryItem: { flex: 1, alignItems: 'center', minWidth: 0 },
@@ -369,44 +377,47 @@ const styles = StyleSheet.create({
     ...ClayCardStyle,
     padding: 12,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  itemRowCorrect: { borderColor: '#10B981', borderWidth: 2 },
-  itemRowIncorrect: { borderColor: '#EF4444', borderWidth: 2 },
+  itemRowCorrect: { borderColor: ClayColors.success, borderWidth: 2 },
+  itemRowIncorrect: { borderColor: ClayColors.danger, borderWidth: 2 },
   itemNum: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800', width: 38 },
-  optionsRow: { flexDirection: 'row', gap: 8 },
+  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, width: '100%', marginTop: 10 },
   bubbleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: ClayColors.surfaceInset,
   },
   bubbleCorrect: { backgroundColor: ClayColors.success, borderColor: ClayColors.success },
   bubbleIncorrect: { backgroundColor: ClayColors.danger, borderColor: ClayColors.danger },
   bubbleText: { color: ClayColors.textSecondary, fontSize: 13, fontWeight: '700' },
-  statusIndicator: { width: 62, alignItems: 'flex-end', gap: 2 },
+  statusIndicator: { flex: 1, alignItems: 'flex-end', gap: 2 },
   warningLabel: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  flagText: { color: '#D97706', fontSize: 10, fontWeight: '700' },
+  flagText: { color: ClayColors.warning, fontSize: 10, fontWeight: '700' },
   confidenceText: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '700' },
-  correctAnswerText: { color: '#DC2626', fontSize: 9, fontWeight: '700' },
+  correctAnswerText: { color: ClayColors.danger, fontSize: 9, fontWeight: '700' },
   resultIcon: { fontSize: 16, fontWeight: '700' },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ClayColors.onPrimary,
     borderTopWidth: 1.5,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: ClayColors.borderSubtle,
     gap: 12,
   },
   discardBtn: {
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    minWidth: 130,
+    backgroundColor: ClayColors.borderSubtle,
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
@@ -414,12 +425,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 7,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: ClayColors.borderDarker,
   },
   discardText: { color: ClayColors.textPrimary, fontWeight: '700' },
   saveBtn: {
     ...ClayButtonStyle,
     flex: 2,
+    minWidth: 140,
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
@@ -427,5 +439,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 7,
   },
-  saveText: { color: '#FFFFFF', fontWeight: '700' },
+  saveText: { color: ClayColors.onPrimary, fontWeight: '700' },
 });
