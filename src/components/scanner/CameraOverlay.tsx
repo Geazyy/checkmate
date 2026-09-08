@@ -45,7 +45,7 @@ export function CameraControls(props: CameraControlsProps) {
 }
 
 const styles = StyleSheet.create({
-  corner: { position: 'absolute', width: 24, height: 24, borderColor: ClayColors.onPrimary, borderWidth: 2 },
+  corner: { position: 'absolute', width: 24, height: 24, borderColor: ClayColors.accent, borderWidth: 2 },
   topLeft: { top: 14, left: 14, borderRightWidth: 0, borderBottomWidth: 0 },
   topRight: { top: 14, right: 14, borderLeftWidth: 0, borderBottomWidth: 0 },
   bottomLeft: { bottom: 14, left: 14, borderRightWidth: 0, borderTopWidth: 0 },

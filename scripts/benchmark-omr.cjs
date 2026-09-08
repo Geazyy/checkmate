@@ -7,6 +7,7 @@ const ts = require('typescript');
 const jpeg = require('jpeg-js');
 const sharp = require(process.env.CHECKMATE_TOOLS ? path.join(process.env.CHECKMATE_TOOLS, 'sharp') : 'sharp');
 const root = path.resolve(__dirname, '..');
+const baselineRef = process.env.OMR_BASELINE_REF || '0532c3e';
 let baseline = process.argv.includes('--baseline');
 const buffers = new Map();
 let sequence = 0;
@@ -44,7 +45,7 @@ const mocks = {
 function source(file) {
   if (!baseline || !file.includes(`${path.sep}src${path.sep}`)) return fs.readFileSync(file, 'utf8');
   try {
-    return execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, 'show', `HEAD:${path.relative(root, file).replaceAll('\\', '/')}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, 'show', `${baselineRef}:${path.relative(root, file).replaceAll('\\', '/')}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch { return fs.readFileSync(file, 'utf8'); }
 }
 const cache = new Map();
@@ -56,7 +57,7 @@ function load(file) {
     for (const [name, stage] of Object.entries(stages)) {
       code += `\n{ const original = ${name}; ${name} = (...args) => { const start = performance.now(); const finish = () => { __timings['${stage}'] = (__timings['${stage}'] || 0) + performance.now() - start; }; try { const value = original(...args); if (value?.then) return value.finally(finish); finish(); return value; } catch(error) { finish(); throw error; } }; }`;
     }
-    code += '\nexports.__classify = classifyRatios; exports.__normalize = normalizeLighting; exports.__components = findComponents; exports.__loadImage = (uri) => loadSmallGrayscaleImage(uri, { measure: async (_, work) => work() }); exports.__runs = selectTwoBubbleRuns;';
+    code += '\nexports.__classify = classifyRatios; exports.__normalize = normalizeLighting; exports.__components = findComponents; exports.__loadImage = (uri) => loadSmallGrayscaleImage(uri, { measure: async (_, work) => work() }); exports.__runs = selectTwoBubbleRuns; exports.__singleRun = selectRegularBubbleRun;';
   }
   const module = { exports: {} };
   cache.set(file, module);

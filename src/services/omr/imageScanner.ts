@@ -27,6 +27,10 @@ export const IMAGE_OMR_CONFIG = {
   minimumGeometryConfidence: 0.82,
   maximumBubbleSizeVariation: 0.45,
   maximumPrintedBaseline: 0.8,
+  joinedBubbleMinimumHeight: 1.6,
+  joinedBubbleMaximumPitch: 1.6,
+  joinedBubbleCutSearch: 0.18,
+  joinedBubbleMaximumBridge: 0.35,
 } as const;
 
 type GrayImage = { data: Uint8Array; width: number; height: number };
@@ -90,7 +94,7 @@ async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof cre
   const bytes = await timer.measure('readImageBytesMs', () => readImageBytes(resized.uri));
   const decoded = await timer.measure('decodeImageMs', () => decode(bytes, {
     useTArray: true,
-    formatAsRGBA: true,
+    formatAsRGBA: false,
     tolerantDecoding: true,
     maxResolutionInMP: 3,
     maxMemoryUsageInMB: 96,
@@ -98,11 +102,11 @@ async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof cre
   return timer.measure('grayscaleMs', () => {
   const gray = new Uint8Array(decoded.width * decoded.height);
 
-  for (let pixel = 0, rgba = 0; pixel < gray.length; pixel++, rgba += 4) {
+  for (let pixel = 0, rgb = 0; pixel < gray.length; pixel++, rgb += 3) {
     gray[pixel] = Math.round(
-      decoded.data[rgba] * 0.299 +
-        decoded.data[rgba + 1] * 0.587 +
-        decoded.data[rgba + 2] * 0.114
+      decoded.data[rgb] * 0.299 +
+        decoded.data[rgb + 1] * 0.587 +
+        decoded.data[rgb + 2] * 0.114
     );
   }
 
@@ -118,14 +122,25 @@ async function normalizeLighting(image: GrayImage, signal?: AbortSignal): Promis
   for (let y = 1; y <= height; y++) {
     if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     let rowSum = 0;
+    const sourceRow = (y - 1) * width;
+    const currentRow = y * stride;
+    const previousRow = currentRow - stride;
     for (let x = 1; x <= width; x++) {
-      rowSum += data[(y - 1) * width + x - 1];
-      integral[y * stride + x] = integral[(y - 1) * stride + x] + rowSum;
+      rowSum += data[sourceRow + x - 1];
+      integral[currentRow + x] = integral[previousRow + x] + rowSum;
     }
   }
 
   const output = new Uint8Array(data.length);
   const radius = IMAGE_OMR_CONFIG.localContrastRadius;
+  const leftEdges = new Uint32Array(width);
+  const rightEdges = new Uint32Array(width);
+  const windowWidths = new Uint32Array(width);
+  for (let x = 0; x < width; x++) {
+    leftEdges[x] = Math.max(0, x - radius);
+    rightEdges[x] = Math.min(width - 1, x + radius) + 1;
+    windowWidths[x] = rightEdges[x] - leftEdges[x];
+  }
   for (let y = 0; y < height; y++) {
     if ((y & 31) === 0 && performance.now() - lastYield > SCAN_WORK_SLICE_MS) { await yieldScanWork(signal); lastYield = performance.now(); }
     const top = Math.max(0, y - radius);
@@ -135,11 +150,11 @@ async function normalizeLighting(image: GrayImage, signal?: AbortSignal): Promis
     const areaHeight = bottom - top + 1;
     const imageRow = y * width;
     for (let x = 0; x < width; x++) {
-      const left = Math.max(0, x - radius);
-      const right = Math.min(width - 1, x + radius);
-      const area = (right - left + 1) * areaHeight;
-      const sum = integral[lowerRow + right + 1]
-        - integral[upperRow + right + 1]
+      const left = leftEdges[x];
+      const right = rightEdges[x];
+      const area = windowWidths[x] * areaHeight;
+      const sum = integral[lowerRow + right]
+        - integral[upperRow + right]
         - integral[lowerRow + left]
         + integral[upperRow + left];
       const localMean = sum / area;
@@ -559,14 +574,17 @@ async function discoverPartialBubbleGrid(
   image: GrayImage,
   optionsCount: number,
   rowsPerColumn: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  separateJoined = false
 ): Promise<BubbleGrid> {
-  const rawCandidates = (await findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
+  let components = await findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
     left: image.width * 0.08,
     top: image.height * 0.02,
     right: image.width * 0.99,
     bottom: image.height * 0.99,
-  }, signal)).filter((component) => {
+  }, signal);
+  if (separateJoined) components = splitJoinedBubbleComponents(image, components);
+  const rawCandidates = components.filter((component) => {
     const ratio = component.width / component.height;
     const maximumSize = Math.min(95, image.width * 0.13);
     return (
@@ -637,6 +655,7 @@ async function discoverPartialBubbleGrid(
   const rows = chooseRegularRows(detectedRows, rowsPerColumn);
 
   if (rows.length !== rowsPerColumn || detectedRows.length !== rowsPerColumn) {
+    if (!separateJoined) return discoverPartialBubbleGrid(image, optionsCount, rowsPerColumn, signal, true);
     throw new OmrScanError(
       `Could not align all ${rowsPerColumn} answer rows. Keep every question and all A-${optionsCount === 5 ? 'E' : 'D'} circles visible, then retake the photo.`
     );
@@ -649,6 +668,59 @@ async function discoverPartialBubbleGrid(
     rowXCenters: rows.map((row) => row.bubbles.map((item) => item.x)),
     rowRadii: rows.map((row) => row.radius),
   };
+}
+
+function splitJoinedBubbleComponents(image: GrayImage, components: Component[]) {
+  const config = IMAGE_OMR_CONFIG;
+  const round = components.filter((c) => c.width >= 8 && c.width <= 95
+    && c.height / c.width >= 0.75 && c.height / c.width <= 1.3);
+  const diameter = median(round.map((c) => c.width).sort((a, b) => b - a).slice(0, 100));
+  const bubbles = round.filter((c) => c.width >= diameter * 0.75 && c.width <= diameter * 1.3);
+  const gaps = bubbles.flatMap((c) => {
+    const below = bubbles.filter((other) => Math.abs(other.x - c.x) < diameter * 0.4
+      && other.y - c.y > diameter * 0.8).sort((a, b) => a.y - b.y)[0];
+    return below && below.y - c.y <= diameter * config.joinedBubbleMaximumPitch ? [below.y - c.y] : [];
+  });
+  const pitch = median(gaps);
+  if (!pitch) return components;
+  return components.flatMap((c) => {
+    if (c.width < diameter * 0.75 || c.width > diameter * 1.3
+      || c.height < diameter * config.joinedBubbleMinimumHeight) return [c];
+    const count = Math.round((c.height - diameter) / pitch) + 1;
+    if (count < 2 || count > OMR_ROWS_PER_COLUMN) return [c];
+    const left = Math.round(c.x - (c.width - 1) / 2);
+    const top = Math.round(c.y - (c.height - 1) / 2);
+    const bottom = top + c.height;
+    const projection = (y: number) => {
+      let dark = 0;
+      for (let x = left; x < left + c.width; x++) dark += Number(image.data[y * image.width + x] <= config.componentThreshold);
+      return dark;
+    };
+    const cuts = [top];
+    // Only cut weak necks near the measured row pitch, never invent absent circles.
+    for (let i = 1; i < count; i++) {
+      const expected = top + diameter / 2 + (i - 0.5) * pitch;
+      const search = pitch * config.joinedBubbleCutSearch;
+      let best = -1;
+      let score = Number.POSITIVE_INFINITY;
+      for (let y = Math.max(top, Math.ceil(expected - search)); y <= Math.min(bottom - 1, Math.floor(expected + search)); y++) {
+        const candidate = projection(y) + Math.abs(y - expected) / pitch;
+        if (candidate < score) { score = candidate; best = y; }
+      }
+      if (best < 0 || projection(best) > diameter * config.joinedBubbleMaximumBridge) return [c];
+      cuts.push(best);
+    }
+    cuts.push(bottom);
+    return cuts.slice(1).map((end, i) => {
+      let minX = left + c.width, maxX = left, minY = end, maxY = cuts[i], area = 0;
+      for (let y = cuts[i]; y < end; y++) for (let x = left; x < left + c.width; x++) {
+        if (image.data[y * image.width + x] > config.componentThreshold) continue;
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y); area++;
+      }
+      return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, width: maxX - minX + 1, height: maxY - minY + 1, area };
+    });
+  });
 }
 
 async function discoverBubbleGrid(

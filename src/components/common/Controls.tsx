@@ -5,6 +5,8 @@ import { ClayColors, ClayInputStyle } from '../../constants/theme';
 export function ActionButton({ style, disabled, accessibilityState, onFocus, onBlur, ...props }: TouchableOpacityProps) {
   const [focused, setFocused] = useState(false);
   return <TouchableOpacity {...props} accessibilityRole={props.accessibilityRole ?? 'button'}
+    {...(Platform.OS === 'web' && typeof accessibilityState?.selected === 'boolean'
+      ? { 'aria-pressed': accessibilityState.selected } : {})}
     activeOpacity={0.7} disabled={disabled} accessibilityState={{ ...accessibilityState, disabled: Boolean(disabled) }}
     onFocus={(event) => { setFocused(true); onFocus?.(event); }}
     onBlur={(event) => { setFocused(false); onBlur?.(event); }}

@@ -38,10 +38,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   titleGroup: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 10,
     flexDirection: 'column',
     gap: 3,
   },
   brandBadge: {
+    maxWidth: '100%',
     backgroundColor: ClayColors.onPrimary,
     alignSelf: 'flex-start',
     paddingHorizontal: 14,

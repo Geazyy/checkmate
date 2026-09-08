@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { chromium } = require(path.join(process.env.CHECKMATE_TOOLS, 'playwright'));
+const { chromium } = require(process.env.CHECKMATE_TOOLS ? path.join(process.env.CHECKMATE_TOOLS, 'playwright') : 'playwright');
 
 async function main() {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -9,10 +9,16 @@ async function main() {
   const page = await context.newPage();
   page.setDefaultTimeout(90000);
   const errors = [];
+  const scanTimings = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    const prefix = '[OMR timing] ';
+    if (message.text().startsWith(prefix)) scanTimings.push(JSON.parse(message.text().slice(prefix.length)));
+  });
   const output = path.resolve('.expo/benchmarks/ui');
   fs.mkdirSync(output, { recursive: true });
   const photo = fs.readFileSync('.expo/benchmarks/generated-25-4.jpg').toString('base64');
+  const scanOnly = process.argv.includes('--scanner-only');
   await context.addInitScript((photo) => {
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true, value: async () => {
       const canvas = document.createElement('canvas');
@@ -30,35 +36,49 @@ async function main() {
     } });
   }, photo);
   try {
-    for (const width of [320, 390, 768, 1280]) {
-      await page.setViewportSize({ width, height: width > 700 ? 900 : 844 });
-      for (const route of ['/', '/exams', '/rosters', '/settings', '/answer-sheets', '/exams/exam-102/answer-key']) {
+    for (const route of scanOnly ? [] : ['/', '/exams', '/rosters', '/settings', '/answer-sheets', '/exams/exam-102/answer-key']) {
         await page.goto(`http://localhost:8081${route}`, { waitUntil: 'domcontentloaded' });
         await page.getByRole('button', { name: route === '/answer-sheets' ? 'Preview' : 'Open profile menu', exact: true }).waitFor();
+      for (const width of [320, 390, 768, 1280]) {
+        await page.setViewportSize({ width, height: width > 700 ? 900 : 844 });
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${route} overflows ${width}`);
         await page.screenshot({ path: path.join(output, `${width}-${route.replaceAll('/', '_') || 'home'}.png`) });
       }
-      await page.goto('http://localhost:8081/scan?examId=exam-102', { waitUntil: 'domcontentloaded' });
+      console.log(`${route}: no page overflow at 320, 390, 768 and 1280px`);
+    }
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: width > 700 ? 900 : 844 });
+      if (width === 320) await page.goto('http://localhost:8081/scan?examId=exam-102', { waitUntil: 'domcontentloaded' });
+      else await page.getByRole('button', { name: 'Retake Photo', exact: true }).click();
       const capture = page.getByRole('button', { name: 'Capture answer sheet', exact: true });
-      await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
-      const before = await page.getByTestId('camera-frame').boundingBox();
+      await page.locator('video:visible').waitFor();
+      await page.waitForFunction(() => [...document.querySelectorAll('video')].some((video) => video.getBoundingClientRect().height > 0 && video.videoWidth > 0));
+      const before = await page.locator('[data-testid="camera-frame"]:visible').boundingBox();
       await page.screenshot({ path: path.join(output, `${width}-camera.png`) });
       await capture.click();
-      await page.getByTestId('captured-photo').waitFor();
-      const after = await page.getByTestId('camera-frame').boundingBox();
+      await page.locator('[data-testid="captured-photo"]:visible').waitFor();
+      const after = await page.locator('[data-testid="camera-frame"]:visible').boundingBox();
       assert.deepEqual(after, before, `Capture changes framing at ${width}`);
-      const status = await page.getByText('Keep questions 1-25 and all A-D bubbles visible.', { exact: true }).boundingBox();
+      const status = await page.getByText('Keep questions 1-25 and all A-D bubbles visible.', { exact: true }).filter({ visible: true }).boundingBox();
       assert.ok(status.y >= after.y + after.height, 'Guidance overlaps photo');
       await page.screenshot({ path: path.join(output, `${width}-captured.png`) });
-      await page.getByRole('button', { name: 'Use Photo', exact: true }).click();
+      await page.getByRole('button', { name: 'Use Photo', exact: true }).evaluate((button) => { button.click(); button.click(); });
       await page.getByRole('button', { name: 'Question 25, answer D', exact: true }).waitFor({ timeout: 30000 });
       assert.equal(await page.getByRole('button', { name: /^Question \d+, answer [A-D]$/ }).count(), 100);
       await page.getByRole('button', { name: 'Question 1, answer B', exact: true }).click();
-      assert.equal(await page.getByRole('button', { name: 'Question 1, answer B', exact: true }).getAttribute('aria-selected'), 'true');
+      await page.waitForFunction(() => document.querySelector('[aria-label="Question 1, answer B"]')?.getAttribute('aria-pressed') === 'true');
       await page.screenshot({ path: path.join(output, `${width}-review.png`) });
-      console.log(`${width}px: navigation, capture framing, 25-item review and manual override passed`);
+      console.log(`${width}px: capture framing, 25-item review and manual override passed`);
     }
     assert.deepEqual(errors, [], 'Browser runtime errors');
+    assert.equal(scanTimings.length, 4, 'Exactly one analysis per double-click');
+    fs.writeFileSync(path.join(output, 'browser-stage-times.json'), JSON.stringify(scanTimings, null, 2));
+  } catch (error) {
+    console.log('Browser errors:', errors);
+    console.log('Current page:', await page.locator('body').innerText());
+    await page.screenshot({ path: path.join(output, 'failure.png') });
+    throw error;
   } finally { await browser.close(); }
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

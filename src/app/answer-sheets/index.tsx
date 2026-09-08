@@ -512,7 +512,7 @@ export default function AnswerSheetGeneratorScreen() {
             </View>
           </View>
           {!scannerReady && (
-            <Text style={styles.compatibilityNote}>The current camera scanner recognizes 25- and 50-item CheckMate layouts. Other counts can be printed and graded manually.</Text>
+            <Text style={styles.compatibilityNote}>Automatic scanning supports 10, 20, 25, 30, 40 and 50 questions. Other counts require manual grading.</Text>
           )}
           {!!fourSheetWarning && <Text style={styles.fourSheetWarning}>{fourSheetWarning}</Text>}
           {fourSheetBlocked ? (
@@ -530,23 +530,23 @@ export default function AnswerSheetGeneratorScreen() {
         )}
 
         <View style={styles.actionRow}>
-          <Pressable disabled={fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => setPreviewOpen(true)}>
+          <Pressable accessibilityRole="button" disabled={fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => setPreviewOpen(true)}>
             <Eye size={17} color={ClayColors.primary} />
             <Text style={styles.secondaryActionText}>Preview</Text>
           </Pressable>
-          <Pressable style={styles.keyAction} onPress={openAnswerKeyEditor}>
+          <Pressable accessibilityRole="button" style={styles.keyAction} onPress={openAnswerKeyEditor}>
             <KeyRound size={17} color={ClayColors.onPrimary} />
             <Text style={styles.primaryActionText}>Answer Key</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('download')}>
+          <Pressable accessibilityRole="button" disabled={busyAction !== null || fourSheetBlocked} style={[styles.secondaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('download')}>
             {busyAction === 'download' ? <ActivityIndicator size="small" color={ClayColors.primary} /> : <Download size={17} color={ClayColors.primary} />}
             <Text style={styles.secondaryActionText}>Save PDF</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.primaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('print')}>
+          <Pressable accessibilityRole="button" disabled={busyAction !== null || fourSheetBlocked} style={[styles.primaryAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('print')}>
             {busyAction === 'print' ? <ActivityIndicator size="small" color={ClayColors.onPrimary} /> : <Printer size={17} color={ClayColors.onPrimary} />}
             <Text style={styles.primaryActionText}>Print</Text>
           </Pressable>
-          <Pressable disabled={busyAction !== null || fourSheetBlocked} style={[styles.shareAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('share')}>
+          <Pressable accessibilityRole="button" disabled={busyAction !== null || fourSheetBlocked} style={[styles.shareAction, fourSheetBlocked && styles.disabledAction]} onPress={() => runAction('share')}>
             {busyAction === 'share' ? <ActivityIndicator size="small" color={ClayColors.onPrimary} /> : <Share2 size={17} color={ClayColors.onPrimary} />}
             <Text style={styles.primaryActionText}>Share PDF</Text>
           </Pressable>
@@ -560,7 +560,7 @@ export default function AnswerSheetGeneratorScreen() {
               <Text style={styles.modalTitle}>Answer sheet preview</Text>
               <Text style={styles.modalSubtitle}>The PDF uses the same rows, fields, markers, and page proportions.</Text>
             </View>
-            <Pressable accessibilityLabel="Close preview" style={styles.iconButton} onPress={() => setPreviewOpen(false)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close preview" style={styles.iconButton} onPress={() => setPreviewOpen(false)}>
               <X size={20} color={ClayColors.textPrimary} />
             </Pressable>
           </View>
@@ -577,7 +577,7 @@ export default function AnswerSheetGeneratorScreen() {
                 {activeExam ? `${activeExam.title} · ${activeExam.total_questions} items · A-${String.fromCharCode(64 + activeExam.options_per_question)}` : 'No active exam'}
               </Text>
             </View>
-            <Pressable accessibilityLabel="Close answer key" style={styles.iconButton} onPress={() => setAnswerKeyOpen(false)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close answer key" style={styles.iconButton} onPress={() => setAnswerKeyOpen(false)}>
               <X size={20} color={ClayColors.textPrimary} />
             </Pressable>
           </View>
@@ -607,11 +607,11 @@ export default function AnswerSheetGeneratorScreen() {
           </ScrollView>
 
           <View style={styles.keyEditorFooter}>
-            <Pressable disabled={keyPdfBusy} style={styles.secondaryAction} onPress={downloadAnswerKey}>
+            <Pressable accessibilityRole="button" disabled={keyPdfBusy} style={styles.secondaryAction} onPress={downloadAnswerKey}>
               {keyPdfBusy ? <ActivityIndicator size="small" color={ClayColors.primary} /> : <FileDown size={17} color={ClayColors.primary} />}
               <Text style={styles.secondaryActionText}>Download Key PDF</Text>
             </Pressable>
-            <Pressable style={styles.saveKeyAction} onPress={saveAnswerKey}>
+            <Pressable accessibilityRole="button" style={styles.saveKeyAction} onPress={saveAnswerKey}>
               <Save size={17} color={ClayColors.onPrimary} />
               <Text style={styles.primaryActionText}>Save Answer Key</Text>
             </Pressable>
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: ClayColors.textPrimary, fontSize: 17, fontWeight: '800' },
   label: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '800', marginTop: 14, marginBottom: 8 },
   optionGroup: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1.5, borderColor: ClayColors.borderDarker, borderRadius: 14, overflow: 'hidden', minHeight: 44, backgroundColor: ClayColors.input },
-  optionButton: { flex: 1, minWidth: 48, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: ClayColors.input, borderRightWidth: 1.5, borderRightColor: ClayColors.borderDarker },
+  optionButton: { flex: 1, minWidth: 48, minHeight: 44, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: ClayColors.input, borderRightWidth: 1.5, borderRightColor: ClayColors.borderDarker },
   optionButtonActive: { backgroundColor: ClayColors.primary },
   optionText: { color: ClayColors.textMuted, fontSize: 12, fontWeight: '700' },
   optionTextActive: { color: ClayColors.onPrimary, fontWeight: '800' },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     ...ClayCardStyle,
     paddingVertical: 18,
   },
-  previewHeadingRow: { paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  previewHeadingRow: { paddingHorizontal: 18, flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' },
   previewCaption: { color: ClayColors.textMuted, fontSize: 11, marginTop: 3, textTransform: 'capitalize', fontWeight: '600' },
   compatibilityBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
   readyBadge: { backgroundColor: ClayColors.cardMint, borderWidth: 1, borderColor: ClayColors.mintBorder },

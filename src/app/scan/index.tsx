@@ -39,6 +39,7 @@ export default function CameraScanScreen() {
   const scanController = useRef<AbortController | null>(null);
   const inputBusy = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const webCameraGeneration = useRef(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +72,7 @@ export default function CameraScanScreen() {
   }, [activeExam?.id, currentExam, setActiveExam]);
 
   const startWebCamera = useCallback(async () => {
+    const generation = ++webCameraGeneration.current;
     setCamError('');
     if (typeof window !== 'undefined' && window.isSecureContext === false) {
       setCamError('Camera access requires HTTPS or localhost. You can still choose a photo.');
@@ -81,7 +83,7 @@ export default function CameraScanScreen() {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } },
         });
-        if (!mounted.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+        if (!mounted.current || generation !== webCameraGeneration.current) { stream.getTracks().forEach((track) => track.stop()); return; }
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = stream;
         setWebCamActive(true);
@@ -89,6 +91,7 @@ export default function CameraScanScreen() {
           videoRef.current.srcObject = stream;
         }
       } catch {
+        if (generation !== webCameraGeneration.current) return;
         setWebCamActive(false);
         setCamError('Camera unavailable. Allow camera access in your browser or choose a photo.');
       }
@@ -103,7 +106,10 @@ export default function CameraScanScreen() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void startWebCamera();
     }
-    return () => { streamRef.current?.getTracks().forEach((track) => track.stop()); };
+    return () => {
+      webCameraGeneration.current++;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
   }, [currentExam, isFocused, pendingImageUri, startWebCamera]);
 
   const captureWebFrame = () => {
