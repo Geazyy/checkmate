@@ -1,4 +1,5 @@
 // Desktop fixture benchmark. Native camera, Expo codecs, persistence and navigation
+/* global __dirname */
 // require a device run; Sharp here substitutes only the image input adapter.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -82,6 +83,10 @@ async function main() {
   buffers.set('50-blurred', await sharp(base).blur(0.55).toBuffer());
   cases.push({ name: '50-blurred', uri: '50-blurred', count: 50, expected });
   cases.push({ name: '25-full-sheet', uri: base, count: 25, expected: expected.slice(0, 25) });
+  cases.push({ name: '25-closeup', uri: path.join(fixtureDir, 'checkmate-25-closeup.jpg'), count: 25,
+    expected: JSON.parse(fs.readFileSync(path.join(fixtureDir, 'checkmate-25-closeup-expected.json'))).answers });
+  cases.push({ name: '25-color', uri: path.join(fixtureDir, 'checkmate-25-color.jpg'), count: 25,
+    expected: JSON.parse(fs.readFileSync(path.join(fixtureDir, 'checkmate-25-color-expected.json'))).answers });
   if (process.argv.includes('--compare')) {
     baseline = true; cache.clear();
     const previous = load(path.join(root, 'src/services/omr/imageScanner.ts'));

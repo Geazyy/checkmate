@@ -73,8 +73,8 @@ export default function ScanReviewScreen() {
 
   const handleToggleOption = (qNum: number, currentOpts: string[], targetOpt: string) => {
     let updated: string[];
-    if (currentOpts.includes(targetOpt)) {
-      updated = currentOpts.filter((o) => o !== targetOpt);
+    if (currentOpts.length === 1 && currentOpts[0] === targetOpt) {
+      updated = [];
     } else {
       updated = [targetOpt]; // Single choice override
     }
@@ -222,7 +222,7 @@ export default function ScanReviewScreen() {
               {detectionStatus !== 'detected' && (
                 <View style={styles.warningLabel}>
                   <AlertTriangle size={11} color={ClayColors.warning} />
-                  <Text style={styles.flagText}>{detectionStatus}</Text>
+                  <Text style={styles.flagText}>{detectionStatus === 'multiple' ? 'Invalid: multiple answers' : detectionStatus}</Text>
                 </View>
               )}
               {showConfidence && typeof item.confidence === 'number' && (
@@ -400,8 +400,8 @@ const styles = StyleSheet.create({
   bubbleIncorrect: { backgroundColor: ClayColors.danger, borderColor: ClayColors.danger },
   bubbleText: { color: ClayColors.textSecondary, fontSize: 13, fontWeight: '700' },
   statusIndicator: { flex: 1, alignItems: 'flex-end', gap: 2 },
-  warningLabel: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  flagText: { color: ClayColors.warning, fontSize: 10, fontWeight: '700' },
+  warningLabel: { flexDirection: 'row', alignItems: 'center', gap: 3, maxWidth: '100%' },
+  flagText: { color: ClayColors.warning, fontSize: 10, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
   confidenceText: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '700' },
   correctAnswerText: { color: ClayColors.danger, fontSize: 9, fontWeight: '700' },
   resultIcon: { fontSize: 16, fontWeight: '700' },

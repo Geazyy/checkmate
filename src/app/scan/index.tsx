@@ -12,7 +12,7 @@ import { fitCameraFrame, PORTRAIT_CAMERA_ASPECT, selectPictureSize } from '../..
 import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
 import { scoreScanResults } from '../../services/omr/scannerEngine';
-import { analyzeAnswerSheetImageDetailed } from '../../services/omr/imageScanner';
+import { analyzeAnswerSheetImageDetailed, OmrScanError, OMR_SCANNER_REVISION } from '../../services/omr/imageScanner';
 import { AppShell } from '../../components/common/AppShell';
 import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
 import { beginReviewTiming, checkCancelled, createScanTimer, scanStage, ScanCancelledError } from '../../services/omr/scanTiming';
@@ -170,6 +170,12 @@ export default function CameraScanScreen() {
       router.push({ pathname: '/scan/review', params: { examId: currentExam.id } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to capture the sheet.';
+      if (__DEV__ && !(error instanceof ScanCancelledError)) console.info('[CheckMate OMR failed]', JSON.stringify({
+        revision: OMR_SCANNER_REVISION,
+        elapsedMs: Math.round(performance.now() - started),
+        code: error instanceof OmrScanError ? 'alignment' : 'scan-failed',
+        ...(error instanceof OmrScanError ? error.details : undefined),
+      }));
       setScanMessage(error instanceof ScanCancelledError ? 'Scan cancelled. Retry or retake the photo.' : message);
     } finally {
       scanController.current = null;

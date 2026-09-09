@@ -15,9 +15,10 @@ async function main() {
     const prefix = '[OMR timing] ';
     if (message.text().startsWith(prefix)) scanTimings.push(JSON.parse(message.text().slice(prefix.length)));
   });
-  const output = path.resolve('.expo/benchmarks/ui');
+  const colorTest = process.argv.includes('--color');
+  const output = path.resolve(colorTest ? '.expo/benchmarks/ui-color' : '.expo/benchmarks/ui');
   fs.mkdirSync(output, { recursive: true });
-  const photo = fs.readFileSync('.expo/benchmarks/generated-25-4.jpg').toString('base64');
+  const photo = fs.readFileSync(colorTest ? 'fixtures/omr/checkmate-25-color.jpg' : '.expo/benchmarks/generated-25-4.jpg').toString('base64');
   const scanOnly = process.argv.includes('--scanner-only');
   await context.addInitScript((photo) => {
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true, value: async () => {
@@ -66,6 +67,21 @@ async function main() {
       await page.getByRole('button', { name: 'Use Photo', exact: true }).evaluate((button) => { button.click(); button.click(); });
       await page.getByRole('button', { name: 'Question 25, answer D', exact: true }).waitFor({ timeout: 30000 });
       assert.equal(await page.getByRole('button', { name: /^Question \d+, answer [A-D]$/ }).count(), 100);
+      if (colorTest) {
+        const answerA = page.getByRole('button', { name: 'Question 12, answer A', exact: true });
+        const answerB = page.getByRole('button', { name: 'Question 12, answer B', exact: true });
+        await page.getByText('Invalid: multiple answers', { exact: true }).waitFor();
+        assert.equal(await answerA.getAttribute('aria-pressed'), 'true');
+        assert.equal(await answerB.getAttribute('aria-pressed'), 'true');
+        assert.equal(await page.getByRole('button', { name: 'Question 11, answer C', exact: true }).getAttribute('aria-pressed'), 'true');
+        await answerA.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: path.join(output, `${width}-invalid.png`) });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+        await answerA.click();
+        assert.equal(await answerA.getAttribute('aria-pressed'), 'true');
+        assert.equal(await answerB.getAttribute('aria-pressed'), 'false');
+        await page.getByText('Invalid: multiple answers', { exact: true }).waitFor({ state: 'hidden' });
+      }
       await page.getByRole('button', { name: 'Question 1, answer B', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('[aria-label="Question 1, answer B"]')?.getAttribute('aria-pressed') === 'true');
       await page.screenshot({ path: path.join(output, `${width}-review.png`) });

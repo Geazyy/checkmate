@@ -13,16 +13,24 @@ const ANALYSIS_MAX_HEIGHT = 1600;
 const SCAN_WORK_SLICE_MS = 32;
 const NORMALIZED_WIDTH = OMR_CANONICAL_SIZE.width;
 const NORMALIZED_HEIGHT = OMR_CANONICAL_SIZE.height;
+export const OMR_SCANNER_REVISION = '2026-09-09.2';
 
 export const IMAGE_OMR_CONFIG = {
   localContrastRadius: 28,
   localContrastStrength: 2.6,
   normalizedPaperLevel: 225,
   componentThreshold: 185,
+  componentFallbackThresholds: [165, 145],
+  colorNoiseAllowance: 40,
+  colorInkStrength: 1.2,
   sampleRadiusRatio: 0.44,
   minimumMarkScore: 0.24,
   confidentMarkScore: 0.38,
   multipleMarkScore: 0.3,
+  minimumMultipleCoverage: 0.45,
+  markCoverageRadiusScale: 1.35,
+  markCoverageInnerRatio: 0.6,
+  markCoverageThreshold: 165,
   minimumSeparation: 0.1,
   minimumGeometryConfidence: 0.82,
   maximumBubbleSizeVariation: 0.45,
@@ -61,7 +69,12 @@ export interface OmrImageAnalysis {
 }
 
 export class OmrScanError extends Error {
-  constructor(message: string) {
+  constructor(message: string, public readonly details?: {
+    detectedRows: number;
+    expectedRows: number;
+    sourceWidth: number;
+    sourceHeight: number;
+  }) {
     super(message);
     this.name = 'OmrScanError';
   }
@@ -74,7 +87,7 @@ async function readImageBytes(uri: string) {
   return new File(uri).bytes();
 }
 
-async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof createScanTimer>, preserveOrientation = false): Promise<GrayImage & { uri: string }> {
+async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof createScanTimer>, preserveOrientation = false): Promise<GrayImage & { uri: string; markData: Uint8Array }> {
   const dimensions = await timer.measure('loadImageMs', () => new Promise<{ width: number; height: number }>((resolve, reject) => {
     Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
   }));
@@ -101,6 +114,7 @@ async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof cre
   }));
   return timer.measure('grayscaleMs', () => {
   const gray = new Uint8Array(decoded.width * decoded.height);
+  const markData = new Uint8Array(gray.length);
 
   for (let pixel = 0, rgb = 0; pixel < gray.length; pixel++, rgb += 3) {
     gray[pixel] = Math.round(
@@ -108,9 +122,13 @@ async function loadSmallGrayscaleImage(uri: string, timer: ReturnType<typeof cre
         decoded.data[rgb + 1] * 0.587 +
         decoded.data[rgb + 2] * 0.114
     );
+    const chroma = Math.max(decoded.data[rgb], decoded.data[rgb + 1], decoded.data[rgb + 2])
+      - Math.min(decoded.data[rgb], decoded.data[rgb + 1], decoded.data[rgb + 2]);
+    // Keep neutral paper/graphite unchanged; saturated pencil ink needs its own contrast.
+    markData[pixel] = Math.max(0, gray[pixel] - Math.max(0, chroma - IMAGE_OMR_CONFIG.colorNoiseAllowance) * IMAGE_OMR_CONFIG.colorInkStrength);
   }
 
-  return { data: gray, width: decoded.width, height: decoded.height, uri: resized.uri };
+  return { data: gray, markData, width: decoded.width, height: decoded.height, uri: resized.uri };
   });
 }
 
@@ -575,15 +593,15 @@ async function discoverPartialBubbleGrid(
   optionsCount: number,
   rowsPerColumn: number,
   signal?: AbortSignal,
-  separateJoined = false
+  joinedComponents?: Component[],
+  threshold: number = IMAGE_OMR_CONFIG.componentThreshold
 ): Promise<BubbleGrid> {
-  let components = await findComponents(image, IMAGE_OMR_CONFIG.componentThreshold, {
+  const components = joinedComponents ?? await findComponents(image, threshold, {
     left: image.width * 0.08,
     top: image.height * 0.02,
     right: image.width * 0.99,
     bottom: image.height * 0.99,
   }, signal);
-  if (separateJoined) components = splitJoinedBubbleComponents(image, components);
   const rawCandidates = components.filter((component) => {
     const ratio = component.width / component.height;
     const maximumSize = Math.min(95, image.width * 0.13);
@@ -655,9 +673,21 @@ async function discoverPartialBubbleGrid(
   const rows = chooseRegularRows(detectedRows, rowsPerColumn);
 
   if (rows.length !== rowsPerColumn || detectedRows.length !== rowsPerColumn) {
-    if (!separateJoined) return discoverPartialBubbleGrid(image, optionsCount, rowsPerColumn, signal, true);
+    if (!joinedComponents) {
+      await yieldScanWork(signal);
+      const separated = splitJoinedBubbleComponents(image, components, rowsPerColumn * optionsCount, threshold);
+      return discoverPartialBubbleGrid(image, optionsCount, rowsPerColumn, signal, separated, threshold);
+    }
+    const nextThreshold = IMAGE_OMR_CONFIG.componentFallbackThresholds.find((value) => value < threshold);
+    if (nextThreshold !== undefined) {
+      await yieldScanWork(signal);
+      return discoverPartialBubbleGrid(image, optionsCount, rowsPerColumn, signal, undefined, nextThreshold);
+    }
     throw new OmrScanError(
-      `Could not align all ${rowsPerColumn} answer rows. Keep every question and all A-${optionsCount === 5 ? 'E' : 'D'} circles visible, then retake the photo.`
+      detectedRows.length === rowsPerColumn
+        ? `Found ${rowsPerColumn} rows, but their spacing could not be aligned. Hold the sheet flat and retake the photo.`
+        : `Aligned ${detectedRows.length} of ${rowsPerColumn} answer rows. Keep every question and all A-${optionsCount === 5 ? 'E' : 'D'} circles visible, then retake the photo.`,
+      { detectedRows: detectedRows.length, expectedRows: rowsPerColumn, sourceWidth: image.width, sourceHeight: image.height }
     );
   }
 
@@ -670,16 +700,21 @@ async function discoverPartialBubbleGrid(
   };
 }
 
-function splitJoinedBubbleComponents(image: GrayImage, components: Component[]) {
+function splitJoinedBubbleComponents(image: GrayImage, components: Component[], expectedBubbles: number, threshold: number) {
   const config = IMAGE_OMR_CONFIG;
   const round = components.filter((c) => c.width >= 8 && c.width <= 95
     && c.height / c.width >= 0.75 && c.height / c.width <= 1.3);
-  const diameter = median(round.map((c) => c.width).sort((a, b) => b - a).slice(0, 100));
+  const diameter = median(round.map((c) => c.width).sort((a, b) => b - a).slice(0, expectedBubbles));
   const bubbles = round.filter((c) => c.width >= diameter * 0.75 && c.width <= diameter * 1.3);
   const gaps = bubbles.flatMap((c) => {
-    const below = bubbles.filter((other) => Math.abs(other.x - c.x) < diameter * 0.4
-      && other.y - c.y > diameter * 0.8).sort((a, b) => a.y - b.y)[0];
-    return below && below.y - c.y <= diameter * config.joinedBubbleMaximumPitch ? [below.y - c.y] : [];
+    let nearestGap = Number.POSITIVE_INFINITY;
+    for (const other of bubbles) {
+      const gap = other.y - c.y;
+      if (Math.abs(other.x - c.x) < diameter * 0.4 && gap > diameter * 0.8) {
+        nearestGap = Math.min(nearestGap, gap);
+      }
+    }
+    return nearestGap <= diameter * config.joinedBubbleMaximumPitch ? [nearestGap] : [];
   });
   const pitch = median(gaps);
   if (!pitch) return components;
@@ -693,7 +728,7 @@ function splitJoinedBubbleComponents(image: GrayImage, components: Component[]) 
     const bottom = top + c.height;
     const projection = (y: number) => {
       let dark = 0;
-      for (let x = left; x < left + c.width; x++) dark += Number(image.data[y * image.width + x] <= config.componentThreshold);
+      for (let x = left; x < left + c.width; x++) dark += Number(image.data[y * image.width + x] <= threshold);
       return dark;
     };
     const cuts = [top];
@@ -711,15 +746,17 @@ function splitJoinedBubbleComponents(image: GrayImage, components: Component[]) 
       cuts.push(best);
     }
     cuts.push(bottom);
-    return cuts.slice(1).map((end, i) => {
+    const pieces = cuts.slice(1).map((end, i) => {
       let minX = left + c.width, maxX = left, minY = end, maxY = cuts[i], area = 0;
       for (let y = cuts[i]; y < end; y++) for (let x = left; x < left + c.width; x++) {
-        if (image.data[y * image.width + x] > config.componentThreshold) continue;
+        if (image.data[y * image.width + x] > threshold) continue;
         minX = Math.min(minX, x); maxX = Math.max(maxX, x);
         minY = Math.min(minY, y); maxY = Math.max(maxY, y); area++;
       }
       return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, width: maxX - minX + 1, height: maxY - minY + 1, area };
     });
+    return pieces.every((piece) => piece.area >= 14 && piece.height >= diameter * 0.6
+      && piece.height <= diameter * config.joinedBubbleMaximumPitch && piece.width >= diameter * 0.65) ? pieces : [c];
   });
 }
 
@@ -791,13 +828,32 @@ function darkRatio(image: GrayImage, centerX: number, centerY: number, radius: n
   return total ? dark / total : 0;
 }
 
-function classifyRatios(ratios: Record<string, number>) {
+function markCoverage(image: GrayImage, centerX: number, centerY: number, sampleRadius: number) {
+  const radius = sampleRadius * IMAGE_OMR_CONFIG.markCoverageRadiusScale;
+  const innerRadius = radius * IMAGE_OMR_CONFIG.markCoverageInnerRatio;
+  let dark = 0, total = 0;
+  // Sample outside the printed letter, but inside the bubble outline.
+  for (let dy = -Math.ceil(radius); dy <= Math.ceil(radius); dy++) {
+    for (let dx = -Math.ceil(radius); dx <= Math.ceil(radius); dx++) {
+      const distance = dx * dx + dy * dy;
+      if (distance > radius * radius || distance < innerRadius * innerRadius) continue;
+      const x = Math.round(centerX + dx), y = Math.round(centerY + dy);
+      if (x < 0 || y < 0 || x >= image.width || y >= image.height) continue;
+      dark += Number(image.data[y * image.width + x] < IMAGE_OMR_CONFIG.markCoverageThreshold);
+      total++;
+    }
+  }
+  return total ? dark / total : 0;
+}
+
+function classifyRatios(ratios: Record<string, number>, coverage?: Record<string, number>) {
   const ranked = Object.entries(ratios)
     .map(([option, ratio]) => ({ option, ratio }))
     .sort((a, b) => b.ratio - a.ratio);
   const strongest = ranked[0];
   const second = ranked[1];
-  const marked = ranked.filter((entry) => entry.ratio >= IMAGE_OMR_CONFIG.multipleMarkScore);
+  const marked = ranked.filter((entry) => entry.ratio >= IMAGE_OMR_CONFIG.multipleMarkScore
+    && (!coverage || coverage[entry.option] >= IMAGE_OMR_CONFIG.minimumMultipleCoverage));
   const separation = strongest.ratio - second.ratio;
   let status: AnswerDetectionStatus;
   let detectedOptions: string[];
@@ -805,7 +861,7 @@ function classifyRatios(ratios: Record<string, number>) {
   if (strongest.ratio < IMAGE_OMR_CONFIG.minimumMarkScore) {
     status = 'blank';
     detectedOptions = [];
-  } else if (marked.length > 1 && separation < 0.25) {
+  } else if (marked.length > 1) {
     status = 'multiple';
     detectedOptions = marked.map((entry) => entry.option);
   } else if (
@@ -936,6 +992,10 @@ export async function analyzeAnswerSheetImageDetailed(
   }
   await scanStage('Preparing image', progress);
   const source = await loadSmallGrayscaleImage(imageUri, timer, progress.preserveOrientation);
+  if (__DEV__) console.info('[CheckMate OMR start]', JSON.stringify({
+    revision: OMR_SCANNER_REVISION, totalQuestions, optionsCount,
+    sourceWidth: source.width, sourceHeight: source.height,
+  }));
   await scanStage('Finding answer sheet', progress);
   const normalizedSource = await timer.measure('preprocessMs', () => normalizeLighting(source, progress.signal));
   const options = OPTION_LETTERS.slice(0, optionsCount);
@@ -955,7 +1015,7 @@ export async function analyzeAnswerSheetImageDetailed(
     throw new OmrScanError('Answer-sheet alignment failed. Please retake the photo with the full answer grid flat and visible.');
   }
   await scanStage('Aligning sheet', progress);
-  const canonical = await timer.measure('perspectiveCorrectionMs', () => canonicalizeGrid(source, sourceGrid, progress.signal));
+  const canonical = await timer.measure('perspectiveCorrectionMs', () => canonicalizeGrid({ ...source, data: source.markData }, sourceGrid, progress.signal));
   analysisImage = await timer.measure('preprocessMs', () => normalizeLighting(canonical.image, progress.signal));
   analysisGrid = canonical.grid;
   await scanStage('Reading answers', progress);
@@ -990,7 +1050,11 @@ export async function analyzeAnswerSheetImageDetailed(
       ?? options.map((_, optionIndex) => sourceGrid.xCenters[optionOffset + optionIndex]);
     const sourceXs = sourceRow.slice(optionOffset, optionOffset + optionsCount);
     const radius = sourceGrid.rowRadii?.[row] ?? sourceGrid.radius;
-    const classification = classifyRatios(ratios);
+    const classification = classifyRatios(ratios, Object.fromEntries(options.map((option, index) => [
+      option,
+      markCoverage(analysisImage, analysisGrid.rowXCenters![row][optionOffset + index],
+        analysisGrid.yCenters[row], analysisGrid.rowRadii?.[row] ?? analysisGrid.radius),
+    ])));
     const left = Math.max(0, Math.min(...sourceXs) - radius * 1.5);
     const right = Math.min(source.width, Math.max(...sourceXs) + radius * 1.5);
     const top = Math.max(0, sourceGrid.yCenters[row] - radius * 1.7);

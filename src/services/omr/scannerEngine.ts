@@ -187,6 +187,7 @@ export function scoreScanResults(
 
     // Check correctness: detected options must match correct options exactly
     const isCorrect =
+      res.status === 'detected' &&
       res.detectedOptions.length > 0 &&
       res.detectedOptions.length === correctOpts.length &&
       res.detectedOptions.every((opt) => correctOpts.includes(opt));

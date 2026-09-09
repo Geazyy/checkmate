@@ -1,5 +1,25 @@
 # Scanner and UI Verification
 
+## Colored Ink and Multiple Answers
+
+- Scanner revision `2026-09-09.2` retains luminance for locating the printed grid and uses a separate chroma-enhanced intensity image for sampling colored ink. Neutral gray pixels remain unchanged; small channel differences are ignored as noise. No packages or Expo versions changed.
+- Single-column alignment can retry at two centrally configured contrast thresholds, retaining the complete-row and geometry checks. This handles the new supplied photo without relaxing the required question count.
+- A second substantial mark no longer disappears just because the first is darker. Independent coverage outside the printed letter is required for multiple-mark evidence, avoiding false positives from A/B/C/D glyphs. Multiple results are ambiguous, score zero even against a multi-option key, and show `Invalid: multiple answers`. Selecting one choice in manual review replaces the double selection; selecting an already-single choice clears it.
+- The real red-pencil photo yields Q11=C and Q12=multiple (A+B), with all 25 expected outcomes matching. Synthetic blue/green/black variants also pass. Very pale ink, severe shadows and other cameras still need real-device validation.
+- All 450 expected photo-fixture outcomes pass. The close-up safety tests and twelve saved generated layouts (10/20/25/30/40/50 with A-D/A-E) pass. `node scripts/test-scanner-ui.cjs --scanner-only --color` passes at 320, 390, 768 and 1280 pixels: actual web preprocessing, invalid warning, both highlighted choices, manual single-choice replacement and no page overflow. The camera stream is simulated, not a Galaxy A05 camera.
+- Visually inspected `.expo/benchmarks/ui-color/320-invalid.png` and `1280-invalid.png`; the warning and controls fit. These are temporary local QA artifacts.
+
+## September 9 Close-Up Follow-Up
+
+- Reproduced the 25-row rejection using the photo region from the user's phone screenshot. Contrast normalization connects neighboring bubble outlines into tall components; the ordinary detector rejects these as non-circular.
+- The joined-outline fallback separates weak bridges using the observed bubble diameter and vertical pitch, validates each piece, then still requires all rows and regular grid geometry. It reuses the existing components instead of repeating the full-image connected-component pass. Answers are sampled from the original image, independently of the answer key.
+- `node scripts/test-omr-closeup.cjs`: original screenshot crop, mild blur, 480-pixel input and JPEG compression each match all 25 visually transcribed answers. Q11 remains blank. Missing first/last rows, missing D column and a non-sheet image are rejected.
+- `node scripts/benchmark-omr.cjs`: all 425 expected answers match across ten photo cases. The saved generated fixtures for 10/20/25/30/40/50 items and A-D/A-E also pass, including blank and multiple-answer cases.
+- Tests use the actual detector with a Sharp adapter instead of Expo's native decoder. They do not verify a fresh Galaxy A05 capture. The supplied example is a screenshot crop, not the original camera JPEG. Strongly darkened variants still need better low-light calibration; do not infer universal photo accuracy from these results.
+- The project is now at `C:\Codin\buildApp\checkmate`; Expo needs to run from that folder. No SDK/package upgrade, Git pull, commit or push was performed for this fix.
+
+Test commands need Sharp in `node_modules`, or `CHECKMATE_TOOLS` pointing to the existing tooling directory containing Sharp.
+
 Updated September 8, 2026. Expo remains **57.0.9**. Runtime dependencies were not upgraded.
 
 ## Audit and Changes
