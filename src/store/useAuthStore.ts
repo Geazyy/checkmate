@@ -1,25 +1,8 @@
 import { create } from 'zustand';
+import { Session } from '@supabase/supabase-js';
 import { UserProfile } from '../types';
-
-interface AuthState {
-  user: UserProfile | null;
-  isLoading: boolean;
-  setUser: (user: UserProfile | null) => void;
-  logout: () => Promise<void>;
-}
-
-export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    id: 'demo-teacher-id',
-    email: 'teacher@school.edu',
-    full_name: 'Sarah Jenkins',
-    institution: 'Westlake High School',
-    role: 'teacher',
-    created_at: new Date().toISOString(),
-  },
-  isLoading: false,
-  setUser: (user) => set({ user }),
-  logout: async () => {
-    set({ user: null });
-  },
-}));
+import { ProfileRow } from '../services/supabase/database.types';
+export const useAuthStore = create<{
+ user: UserProfile | null; profile: ProfileRow | null; session: Session | null;
+ isLoading: boolean; recovery: boolean; error: string | null;
+}>(() => ({ user: null, profile: null, session: null, isLoading: true, recovery: false, error: null }));

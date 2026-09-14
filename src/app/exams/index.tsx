@@ -1,5 +1,7 @@
 import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useCallback, useMemo, useState } from 'react';
+import { randomUUID } from 'expo-crypto';
+import { currentOwner } from '../../store/storage';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import {
   Archive,
@@ -108,11 +110,11 @@ export default function ExamsManagerScreen() {
       return;
     }
     const selectedClass = classes.find((item) => item.id === newClassId);
-    const id = `exam-${Date.now()}`;
+    const id = randomUUID();
     const now = new Date().toISOString();
     const exam: Exam = {
       id,
-      teacher_id: 'demo-teacher-id',
+      teacher_id: currentOwner()!,
       class_id: selectedClass?.id,
       title: newTitle.trim(),
       description: selectedClass?.subject ?? '',

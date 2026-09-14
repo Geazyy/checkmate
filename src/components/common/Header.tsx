@@ -4,10 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ClayColors } from '../../constants/theme';
 import { CheckCircle2 } from 'lucide-react-native';
+import { useSyncStatus } from '../../store/storage';
 
 export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ title = 'CheckMate', compact = false }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const sync = useSyncStatus();
 
   return (
     <View style={[styles.container, { paddingTop: compact ? 16 : Math.max(16, insets.top + 8) }]}>
@@ -21,7 +23,7 @@ export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ tit
       <View style={styles.rightGroup}>
         <View style={styles.offlineChip}>
           <CheckCircle2 size={13} color={ClayColors.success} />
-          <Text style={styles.offlineChipText}>Local Mode</Text>
+          <Text style={styles.offlineChipText}>{sync.pending ? 'Saved locally' : sync.status}</Text>
         </View>
       </View>
     </View>

@@ -24,6 +24,7 @@ import {
   scannerSupportsItemCount,
 } from '../../services/omr/sheetLayout';
 import { useExamStore } from '../../store/useExamStore';
+import { useTemplateStore } from '../../store/useTemplateStore';
 import { AnswerKeyItem } from '../../types';
 import { ClayCardStyle, ClayColors } from '../../constants/theme';
 
@@ -182,16 +183,20 @@ function SheetPreview({ config, large = false }: { config: AnswerSheetConfig; la
 export default function AnswerSheetGeneratorScreen() {
   const router = useRouter();
   const { examId } = useLocalSearchParams<{ examId?: string }>();
+  const templates = useTemplateStore(state => state.templates);
+  const saveTemplate = useTemplateStore(state => state.saveTemplate);
   const { exams, activeExam, activeAnswerKeys, setActiveAnswerKeys, setActiveExam } = useExamStore();
-  const initialCount = activeExam?.total_questions ?? DEFAULT_ANSWER_SHEET_CONFIG.itemCount;
+  const initialExam = exams.find(exam => exam.id === examId) ?? activeExam;
+  const initialCount = initialExam?.total_questions ?? DEFAULT_ANSWER_SHEET_CONFIG.itemCount;
   const [config, setConfig] = useState<AnswerSheetConfig>({
     ...DEFAULT_ANSWER_SHEET_CONFIG,
     itemCount: initialCount,
-    choiceCount: activeExam?.options_per_question ?? 4,
+    choiceCount: initialExam?.options_per_question ?? 4,
     fields: { ...DEFAULT_ANSWER_SHEET_CONFIG.fields },
-    testTitle: activeExam?.title ?? '',
-    subject: activeExam?.class_name ?? activeExam?.description ?? '',
-    testCode: activeExam?.id ?? '',
+    testTitle: initialExam?.title ?? '',
+    subject: initialExam?.class_name ?? initialExam?.description ?? '',
+    testCode: initialExam?.id ?? '',
+    ...(templates[initialExam?.id ?? 'default'] ?? {}),
   });
   const [customCount, setCustomCount] = useState(String(initialCount));
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
@@ -210,6 +215,7 @@ export default function AnswerSheetGeneratorScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setConfig((current) => ({
       ...current,
+      ...templates[routeExam.id],
       itemCount: routeExam.total_questions,
       choiceCount: routeExam.options_per_question,
       testTitle: routeExam.title,
@@ -217,7 +223,7 @@ export default function AnswerSheetGeneratorScreen() {
       testCode: routeExam.id,
     }));
     setCustomCount(String(routeExam.total_questions));
-  }, [activeExam?.id, examId, exams, setActiveExam]);
+  }, [activeExam?.id, examId, exams, setActiveExam, templates]);
 
   const isPreset = ITEM_PRESETS.includes(config.itemCount as (typeof ITEM_PRESETS)[number]);
   const scannerReady = scannerSupportsItemCount(config.itemCount);
@@ -255,6 +261,7 @@ export default function AnswerSheetGeneratorScreen() {
     setMessage('');
     try {
       let generated: GeneratedAnswerSheet | undefined;
+      saveTemplate(activeExam?.id ?? 'default', config);
       if (action === 'download') {
         if (Platform.OS === 'web') {
           await printAnswerSheet(config);

@@ -6,8 +6,11 @@ import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
 import { ClassSection, Student } from '../../types';
 import { ClayCardStyle, ClayColors } from '../../constants/theme';
+import { useRosterStore } from '../../store/useRosterStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { randomUUID } from 'expo-crypto';
 
-const INITIAL_STUDENTS: Student[] = [
+export const LEGACY_DEMO_STUDENTS: Student[] = [
   {
     id: 's-1',
     teacher_id: 'demo-teacher-id',
@@ -39,10 +42,8 @@ const INITIAL_STUDENTS: Student[] = [
 
 export default function RosterScreen() {
   const { classes, selectedClassId, setSelectedClass, addClass } = useExamStore();
-  const [studentsByClassId, setStudentsByClassId] = useState<Record<string, Student[]>>({
-    'class-1': INITIAL_STUDENTS,
-    'class-2': [],
-  });
+  const { studentsByClassId, setStudentsByClassId } = useRosterStore();
+  const user = useAuthStore(state => state.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -81,8 +82,8 @@ export default function RosterScreen() {
     }
 
     const newClass: ClassSection = {
-      id: `class-${Date.now()}`,
-      teacher_id: 'demo-teacher-id',
+      id: randomUUID(),
+      teacher_id: user!.id,
       name: className.trim(),
       subject: classSubject.trim(),
       academic_year: academicYear.trim() || '2026-2027',
@@ -103,8 +104,8 @@ export default function RosterScreen() {
     if (!firstName.trim() || !studentNum.trim() || !selectedClassId) return;
 
     const newStudent: Student = {
-      id: `s-${Date.now()}`,
-      teacher_id: 'demo-teacher-id',
+      id: randomUUID(),
+      teacher_id: user!.id,
       student_number: studentNum,
       first_name: firstName,
       last_name: lastName || 'Student',

@@ -21,7 +21,7 @@ interface ScanState {
 }
 
 // Initial Mock Scans for demonstration
-const MOCK_SCANS: ScanResult[] = [
+export const LEGACY_DEMO_SCANS: ScanResult[] = [
   {
     id: 'scan-1',
     exam_id: 'exam-101',
@@ -79,7 +79,7 @@ export const useScanStore = create<ScanState>()(persist((set) => ({
   isAligned: false,
   torchEnabled: false,
   lastScannedResult: null,
-  scannedResults: MOCK_SCANS,
+  scannedResults: [],
   setIsScanning: (isScanning) => set({ isScanning }),
   setIsAligned: (isAligned) => set({ isAligned }),
   setTorchEnabled: (torchEnabled) => set({ torchEnabled }),
@@ -126,6 +126,7 @@ export const useScanStore = create<ScanState>()(persist((set) => ({
     })),
 }), {
   name: 'checkmate-scans-v1',
+  skipHydration: true,
   storage: createJSONStorage(() => appStorage),
   partialize: (state) => ({ scannedResults: state.scannedResults }),
 }));

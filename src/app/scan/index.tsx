@@ -1,5 +1,7 @@
 import { ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { trackPrivateImage } from '../../services/auth/privateImages';
+import { randomUUID } from 'expo-crypto';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Href, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowRight, CheckCircle2, FileText, RotateCw, X } from 'lucide-react-native';
@@ -149,7 +151,7 @@ export default function CameraScanScreen() {
       const score = scoreScanResults(bubbleResults, currentAnswerKeys);
 
       const newScanResult = {
-        id: `scan-${Date.now()}`,
+        id: randomUUID(),
         exam_id: currentExam.id,
         raw_score: score.rawScore,
         max_score: score.maxScore,
@@ -157,7 +159,7 @@ export default function CameraScanScreen() {
         status: bubbleResults.some((item) => item.isAmbiguous)
           ? ('flagged_manual' as const)
           : ('graded' as const),
-        cropped_sheet_image_url: analysis.previewImageUri,
+        cropped_sheet_image_url: trackPrivateImage(analysis.previewImageUri),
         scanned_at: new Date().toISOString(),
         items: score.itemDetails,
       };
@@ -194,7 +196,7 @@ export default function CameraScanScreen() {
       if (Platform.OS === 'web') imageUri = captureWebFrame();
       else {
         const photo = await cameraRef.current?.takePictureAsync({ quality: 0.92, skipProcessing: false, exif: false });
-        imageUri = photo?.uri;
+        imageUri = trackPrivateImage(photo?.uri);
         // Some Android sensors report landscape near a flat, top-down capture even in a portrait app.
         if (photo && photo.width > photo.height) imageUri = await renderPhoto(photo.uri, -90);
       }
@@ -222,7 +224,11 @@ export default function CameraScanScreen() {
       const height = rotation % 180 ? size.width : size.height;
       if (Math.max(width, height) > 2048) context.resize(width > height ? { width: 2048 } : { height: 2048 });
       const rendered = await context.renderAsync();
-      try { return (await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 })).uri; }
+      try {
+        const uri = (await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 })).uri;
+        trackPrivateImage(uri);
+        return uri;
+      }
       finally { rendered.release(); }
     } finally { context.release(); }
   };

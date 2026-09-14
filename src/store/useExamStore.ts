@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { AnswerKeyItem, ClassSection, Exam } from '../types';
-import { appStorage } from './storage';
+import { appStorage, currentOwner } from './storage';
+import { randomUUID } from 'expo-crypto';
 
 interface ExamState {
   exams: Exam[];
@@ -26,7 +27,7 @@ interface ExamState {
 }
 
 // Initial Mock Data for instant demonstration
-const INITIAL_EXAMS: Exam[] = [
+export const LEGACY_DEMO_EXAMS: Exam[] = [
   {
     id: 'exam-101',
     teacher_id: 'demo-teacher-id',
@@ -59,7 +60,7 @@ const INITIAL_EXAMS: Exam[] = [
   },
 ];
 
-const MOCK_CLASSES: ClassSection[] = [
+export const LEGACY_DEMO_CLASSES: ClassSection[] = [
   {
     id: 'class-1',
     teacher_id: 'demo-teacher-id',
@@ -106,17 +107,17 @@ const resizeAnswerKeys = (keys: AnswerKeyItem[], examId: string, count: number, 
   });
 };
 
-const INITIAL_ANSWER_KEYS = Object.fromEntries(
-  INITIAL_EXAMS.map((exam) => [exam.id, createDemoAnswerKeys(exam)])
+export const LEGACY_DEMO_ANSWER_KEYS = Object.fromEntries(
+  LEGACY_DEMO_EXAMS.map((exam) => [exam.id, createDemoAnswerKeys(exam)])
 );
 
 export const useExamStore = create<ExamState>()(persist((set, get) => ({
-  exams: INITIAL_EXAMS,
-  classes: MOCK_CLASSES,
+  exams: [],
+  classes: [],
   activeExam: null,
   activeAnswerKeys: [],
-  answerKeysByExamId: INITIAL_ANSWER_KEYS,
-  selectedClassId: MOCK_CLASSES[0]?.id ?? null,
+  answerKeysByExamId: {},
+  selectedClassId: null,
   setExams: (exams) => set({ exams }),
   setClasses: (classes) => set({ classes }),
   addClass: (classSection) =>
@@ -179,10 +180,11 @@ export const useExamStore = create<ExamState>()(persist((set, get) => ({
     const state = get();
     const source = state.exams.find((exam) => exam.id === examId);
     if (!source) return null;
-    const id = `exam-${Date.now()}`;
+    const id = randomUUID();
     const now = new Date().toISOString();
     const duplicate: Exam = {
       ...source,
+      teacher_id: currentOwner() ?? '',
       id,
       title: `${source.title} (Copy)`,
       status: 'draft',
@@ -236,13 +238,11 @@ export const useExamStore = create<ExamState>()(persist((set, get) => ({
     }),
 }), {
   name: 'checkmate-exams-v1',
+  skipHydration: true,
   storage: createJSONStorage(() => appStorage),
   partialize: (state) => ({
     exams: state.exams,
     classes: state.classes,
-    activeExam: state.activeExam,
-    activeAnswerKeys: state.activeAnswerKeys,
     answerKeysByExamId: state.answerKeysByExamId,
-    selectedClassId: state.selectedClassId,
   }),
 }));

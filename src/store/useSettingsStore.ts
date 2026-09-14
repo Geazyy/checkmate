@@ -12,4 +12,4 @@ export const useSettingsStore = create<SettingsState>()(persist((set) => ({
   showConfidence: true,
   highlightFlagged: true,
   setPreference: (key, value) => set({ [key]: value }),
-}), { name: 'checkmate-settings-v1', storage: createJSONStorage(() => appStorage) }));
+}), { name: 'checkmate-settings-v1', skipHydration: true, storage: createJSONStorage(() => appStorage) }));

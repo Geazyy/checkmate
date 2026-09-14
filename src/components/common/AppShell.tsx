@@ -8,6 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader } from './Header';
 import { useExamStore } from '../../store/useExamStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { Avatar } from '../auth/Avatar';
+import { logout } from '../../services/auth/session';
+import { friendlyAuthError } from '../../services/auth/errors';
 
 type AppShellProps = {
   title: string;
@@ -28,6 +31,11 @@ export function AppShell({ title, children }: AppShellProps) {
   const activeExam = useExamStore((state) => state.activeExam);
   const user = useAuthStore((state) => state.user);
   const [profileOpen, setProfileOpen] = useState(false);
+  const profile = useAuthStore(state => state.profile);
+  const session = useAuthStore(state => state.session);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const desktop = width >= 900;
   const showHeader = pathname === '/';
 
@@ -66,7 +74,7 @@ export function AppShell({ title, children }: AppShellProps) {
         <>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName} numberOfLines={1}>{user?.full_name ?? 'Teacher'}</Text>
-            <Text style={styles.profileRole}>Offline Workspace</Text>
+            <Text style={styles.profileRole}>{profile?.role ?? 'Teacher'}</Text>
           </View>
           <ChevronRight size={16} color={ClayColors.textMuted} />
         </>
@@ -131,10 +139,13 @@ export function AppShell({ title, children }: AppShellProps) {
         <Pressable style={styles.modalBackdrop} onPress={() => setProfileOpen(false)}>
           <Pressable style={[styles.profilePanel, desktop ? styles.profilePanelDesktop : styles.profilePanelMobile]} onPress={() => undefined}>
             <View style={styles.profilePanelHeader}>
-              <View style={styles.largeAvatar}><UserRound size={24} color={ClayColors.onPrimary} /></View>
+              <Avatar />
               <View style={styles.profilePanelCopy}>
                 <Text style={styles.profilePanelName}>{user?.full_name ?? 'Teacher'}</Text>
-                <Text style={styles.profilePanelEmail}>{user?.email ?? 'Local Offline Mode'}</Text>
+                <Text style={styles.profilePanelEmail}>{user?.email} {session?.user.email_confirmed_at ? '(verified)' : ''}</Text>
+                {!!profile?.school_name && <Text style={styles.profilePanelEmail}>{profile.school_name}</Text>}
+                {!!profile?.teacher_id && <Text style={styles.profilePanelEmail}>ID: {profile.teacher_id}</Text>}
+                <Text style={styles.profilePanelEmail}>{profile?.role ?? 'teacher'}</Text>
               </View>
               <TouchableOpacity accessibilityLabel="Close profile menu" style={styles.closeButton} onPress={() => setProfileOpen(false)}>
                 <X size={18} color={ClayColors.textMuted} />
@@ -142,17 +153,34 @@ export function AppShell({ title, children }: AppShellProps) {
             </View>
             <View style={styles.profileMenuDivider} />
             {[
+              { label: 'Edit profile', icon: UserRound },
               { label: 'Settings', icon: Settings },
               { label: 'Help and support', icon: CircleHelp },
               { label: 'Log out', icon: LogOut },
             ].map(({ label, icon: Icon }) => (
-              <TouchableOpacity key={label} disabled={label !== 'Settings'} style={styles.profileMenuItem}
-                onPress={() => { setProfileOpen(false); router.push('/settings'); }}>
+              <TouchableOpacity key={label} disabled={loggingOut} style={styles.profileMenuItem}
+                onPress={() => {
+                  if (label === 'Log out') { setConfirmLogout(true); setLogoutError(''); return; }
+                  setProfileOpen(false);
+                  router.push(label === 'Settings' ? '/settings' : label === 'Edit profile' ? '/profile' : '/help');
+                }}>
                 <Icon size={18} color={label === 'Log out' ? ClayColors.danger : ClayColors.textMuted} />
                 <Text style={[styles.profileMenuLabel, label === 'Log out' && styles.logoutLabel]}>{label}</Text>
-                {label === 'Settings' ? <ChevronRight size={18} color={ClayColors.textMuted} /> : <Text style={styles.soonLabel}>Soon</Text>}
+                <ChevronRight size={18} color={ClayColors.textMuted} />
               </TouchableOpacity>
             ))}
+            {confirmLogout && <View style={{ gap: 10, marginTop: 10 }}>
+              <Text style={styles.profilePanelEmail}>Log out of CheckMate? Unsynced work will stay in the private local cache for this account.</Text>
+              {!!logoutError && <Text accessibilityRole="alert" style={styles.logoutLabel}>{logoutError}</Text>}
+              <TouchableOpacity disabled={loggingOut} style={[styles.profileMenuItem, { backgroundColor: ClayColors.cardRose }]}
+                onPress={() => {
+                  setLoggingOut(true);
+                  void logout().catch(error => setLogoutError(friendlyAuthError(error))).finally(() => setLoggingOut(false));
+                }}>
+                <LogOut color={ClayColors.danger} size={18} /><Text style={styles.logoutLabel}>{loggingOut ? 'Logging out...' : 'Confirm log out'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={loggingOut} onPress={() => setConfirmLogout(false)}><Text style={styles.profileMenuLabel}>Cancel</Text></TouchableOpacity>
+            </View>}
           </Pressable>
         </Pressable>
       </Modal>

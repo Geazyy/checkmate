@@ -6,6 +6,7 @@ import { AppShell } from '../components/common/AppShell';
 import { ActionButton } from '../components/common/Controls';
 import { ClayColors, Spacing } from '../constants/theme';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { SyncSettings } from '../components/auth/SyncSettings';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function SettingsScreen() {
         <ChevronLeft size={20} color={ClayColors.primary} /><Text style={styles.backText}>Home</Text>
       </ActionButton>
       <Text style={styles.title}>Settings</Text>
+      <SyncSettings />
       <Text style={styles.sectionTitle}>Scan review</Text>
       {[
         { key: 'showConfidence' as const, label: 'Confidence scores', value: showConfidence },
