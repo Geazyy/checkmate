@@ -1,8 +1,10 @@
+import { useThemedStyles } from '../constants/theme';
 import { Link } from 'expo-router';
 import { ScrollView, Text } from 'react-native';
 import { AppShell } from '../components/common/AppShell';
-import { styles } from '../components/auth/AuthForm';
+import { createStyles as createAuthStyles } from '../components/auth/AuthForm';
 export default function Help() {
+  const styles = useThemedStyles(createAuthStyles);
  return <AppShell title="Help"><ScrollView contentContainerStyle={[styles.container, { alignItems: 'flex-start' }]}>
   <Text style={styles.title}>Help and support</Text>
   <Text style={styles.label}>For account access, use password reset or ask your school administrator. Never share your password or verification link.</Text>

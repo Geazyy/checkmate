@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../../constants/theme';
 import { ActionButton as TouchableOpacity } from '../../../components/common/Controls';
 import React, { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -7,9 +8,11 @@ import { AppShell } from '../../../components/common/AppShell';
 import { generateAnswerKeyMatrixPDF } from '../../../services/export/pdfGenerator';
 import { OPTION_LETTERS } from '../../../services/omr/scannerEngine';
 import { useExamStore } from '../../../store/useExamStore';
-import { ClayCardStyle, ClayColors } from '../../../constants/theme';
+
 
 export default function AnswerKeyScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -119,7 +122,7 @@ export default function AnswerKeyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 1000, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 28 },
   emptyTitle: { color: ClayColors.textPrimary, fontSize: 20, fontWeight: '800' },
@@ -159,7 +162,7 @@ const styles = StyleSheet.create({
   toolbar: {
     flexWrap: 'wrap',
     minHeight: 60,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 20,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',

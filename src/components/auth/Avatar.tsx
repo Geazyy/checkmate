@@ -1,10 +1,12 @@
+import { useAppTheme } from '../../constants/theme';
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { supabase } from '../../services/supabase/client';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ClayColors as C } from '../../constants/theme';
+
 export function Avatar({ size = 48 }: { size?: number }) {
+  const { ClayColors: C } = useAppTheme();
  const profile = useAuthStore(s => s.profile);
  const user = useAuthStore(s => s.user);
  const ownerId = user?.id;

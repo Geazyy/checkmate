@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.checkmate"
+      "package": "com.anonymous.checkmate",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -26,6 +30,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow CheckMate to photograph answer sheets for grading.",
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -44,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1e7da79b-32dd-4170-b91f-58de2a8c11a6"
+      }
+    },
+    "owner": "geazzy"
   }
 }

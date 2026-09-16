@@ -1,5 +1,6 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { ActionButton as TouchableOpacity } from './Controls';
-import { ClayColors } from '../../constants/theme';
+
 import React, { ReactNode, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ChevronRight, CircleHelp, ClipboardList, Home, LogOut, ScanLine, Settings, UserRound, Users, X } from 'lucide-react-native';
@@ -11,6 +12,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Avatar } from '../auth/Avatar';
 import { logout } from '../../services/auth/session';
 import { friendlyAuthError } from '../../services/auth/errors';
+import { AppearanceControl } from './AppearanceControl';
 
 type AppShellProps = {
   title: string;
@@ -24,6 +26,8 @@ const NAV_ITEMS = [
 ];
 
 export function AppShell({ title, children }: AppShellProps) {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -152,6 +156,7 @@ export function AppShell({ title, children }: AppShellProps) {
               </TouchableOpacity>
             </View>
             <View style={styles.profileMenuDivider} />
+            <AppearanceControl />
             {[
               { label: 'Edit profile', icon: UserRound },
               { label: 'Settings', icon: Settings },
@@ -188,14 +193,14 @@ export function AppShell({ title, children }: AppShellProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayColors }: AppTheme) => StyleSheet.create({
   root: { flex: 1, flexDirection: 'row', backgroundColor: ClayColors.bg },
   main: { flex: 1, minWidth: 0 },
   content: { flex: 1, paddingBottom: 76 },
   desktopContent: { paddingBottom: 0 },
   sidebar: {
     width: 240,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRightWidth: 2,
     borderRightColor: ClayColors.borderSubtle,
     padding: 18,
@@ -315,7 +320,7 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingTop: 4,
     paddingHorizontal: 8,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 24,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
@@ -377,7 +382,7 @@ const styles = StyleSheet.create({
   profileRole: { color: ClayColors.textMuted, fontSize: 9, fontWeight: '600', marginTop: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
   profilePanel: {
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
     padding: 20,

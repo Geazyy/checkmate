@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -26,7 +27,7 @@ import {
 import { useExamStore } from '../../store/useExamStore';
 import { useTemplateStore } from '../../store/useTemplateStore';
 import { AnswerKeyItem } from '../../types';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+
 
 const ITEM_PRESETS = [10, 20, 25, 30, 40, 50] as const;
 const FIELD_LABELS: Record<SheetFieldKey, string> = {
@@ -52,6 +53,7 @@ function OptionGroup({
   value: SegmentValue;
   onChange: (value: SegmentValue) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.optionGroup}>
       {options.map((option) => {
@@ -72,6 +74,7 @@ function OptionGroup({
 }
 
 function MiniSheet({ config, compact = false }: { config: AnswerSheetConfig; compact?: boolean }) {
+  const styles = useThemedStyles(createStyles);
   const columns = getQuestionColumns(config.itemCount);
   const options = ['A', 'B', 'C', 'D', 'E'].slice(0, config.choiceCount);
   const enabledFields = (Object.keys(config.fields) as SheetFieldKey[]).filter(
@@ -130,6 +133,7 @@ function MiniSheet({ config, compact = false }: { config: AnswerSheetConfig; com
 }
 
 function SheetPreview({ config, large = false }: { config: AnswerSheetConfig; large?: boolean }) {
+  const styles = useThemedStyles(createStyles);
   const points = getPagePoints(config.paperSize, config.orientation);
   const width = config.orientation === 'landscape' ? (large ? 920 : 720) : large ? 660 : 500;
   const height = width * (points.height / points.width);
@@ -181,6 +185,8 @@ function SheetPreview({ config, large = false }: { config: AnswerSheetConfig; la
 }
 
 export default function AnswerSheetGeneratorScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { examId } = useLocalSearchParams<{ examId?: string }>();
   const templates = useTemplateStore(state => state.templates);
@@ -448,12 +454,13 @@ export default function AnswerSheetGeneratorScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Student Information</Text>
+          <Text style={styles.sectionTitle}>Sheet Information</Text>
           <View style={styles.fieldToggleGrid}>
             {metadataFields.map((key) => (
               <View key={key} style={styles.toggleRow}>
                 <Text style={styles.toggleLabel}>{FIELD_LABELS[key]}</Text>
                 <Switch
+                  accessibilityLabel={`Print ${FIELD_LABELS[key]}`}
                   value={config.fields[key]}
                   onValueChange={(value) => updateField(key, value)}
                   trackColor={{ false: ClayColors.borderDarker, true: ClayColors.primary }}
@@ -464,34 +471,53 @@ export default function AnswerSheetGeneratorScreen() {
           </View>
 
           <View style={styles.textFieldGrid}>
+            <View style={styles.textField}>
+            <Text style={styles.fieldLabel}>Sheet title</Text>
             <TextInput
+              accessibilityLabel="Sheet title"
               style={styles.textInput}
               placeholder="Test title"
               placeholderTextColor={ClayColors.textMuted}
               value={config.testTitle}
               onChangeText={(value) => updateConfig('testTitle', value)}
             />
+            </View>
+            {config.fields.subject && <View style={styles.textField}>
+            <Text style={styles.fieldLabel}>Subject / section</Text>
             <TextInput
+              accessibilityLabel="Subject / section"
               style={styles.textInput}
               placeholder="Subject / section"
               placeholderTextColor={ClayColors.textMuted}
               value={config.subject}
               onChangeText={(value) => updateConfig('subject', value)}
             />
+            </View>}
+            {config.fields.teacher && <View style={styles.textField}>
+            <Text style={styles.fieldLabel}>Teacher</Text>
             <TextInput
+              accessibilityLabel="Teacher"
               style={styles.textInput}
               placeholder="Teacher"
               placeholderTextColor={ClayColors.textMuted}
               value={config.teacher}
               onChangeText={(value) => updateConfig('teacher', value)}
             />
+            </View>}
+            {config.fields.testCode && <View style={[styles.textField, styles.textFieldWide]}>
+            <Text style={styles.fieldLabel}>Sheet / test code</Text>
             <TextInput
-              style={styles.textInput}
+              accessibilityLabel="Sheet / test code"
+              style={[styles.textInput, styles.codeInput]}
+              multiline
+              autoCapitalize="none"
+              autoCorrect={false}
               placeholder="Sheet / test code"
               placeholderTextColor={ClayColors.textMuted}
               value={config.testCode}
-              onChangeText={(value) => updateConfig('testCode', value)}
+              onChangeText={(value) => updateConfig('testCode', value.replace(/[\r\n]/g, ''))}
             />
+            </View>}
           </View>
 
           <View style={styles.toggleRowWide}>
@@ -500,6 +526,7 @@ export default function AnswerSheetGeneratorScreen() {
               <Text style={styles.toggleHint}>{buildLayoutId(config)}</Text>
             </View>
             <Switch
+              accessibilityLabel="Print layout identifier"
               value={config.includeLayoutId}
               onValueChange={(value) => updateConfig('includeLayoutId', value)}
               trackColor={{ false: ClayColors.borderDarker, true: ClayColors.primary }}
@@ -629,7 +656,7 @@ export default function AnswerSheetGeneratorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: ClayColors.bg },
   content: { width: '100%', maxWidth: 1000, alignSelf: 'center', padding: 18, paddingBottom: 60, gap: 16 },
   backButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
@@ -655,7 +682,11 @@ const styles = StyleSheet.create({
   toggleRow: { width: '48%', minWidth: 155, flexGrow: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: ClayColors.input, borderRadius: 14, borderWidth: 1.5, borderColor: ClayColors.borderDarker },
   toggleLabel: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '700' },
   textFieldGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  textInput: { width: '48%', minWidth: 155, flexGrow: 1, height: 44, borderWidth: 1.5, borderColor: ClayColors.borderDarker, borderRadius: 14, color: ClayColors.textPrimary, backgroundColor: ClayColors.input, paddingHorizontal: 12, fontSize: 12, fontWeight: '600' },
+  textField: { flexBasis: 200, flexGrow: 1, minWidth: 0, gap: 6 },
+  textFieldWide: { flexBasis: '100%' },
+  fieldLabel: { color: ClayColors.textPrimary, fontSize: 12, fontWeight: '700' },
+  textInput: { width: '100%', minHeight: 44, borderWidth: 1.5, borderColor: ClayColors.borderDarker, borderRadius: 14, color: ClayColors.textPrimary, backgroundColor: ClayColors.input, paddingHorizontal: 12, paddingVertical: 12, fontSize: 12, fontWeight: '600' },
+  codeInput: { minHeight: 64, textAlignVertical: 'top' },
   toggleRowWide: { marginTop: 14, minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: ClayColors.input, borderRadius: 14, borderWidth: 1.5, borderColor: ClayColors.borderDarker },
   toggleCopy: { flex: 1, paddingVertical: 8, paddingRight: 8 },
   toggleHint: { color: ClayColors.textMuted, fontSize: 10, marginTop: 2, fontWeight: '600' },
@@ -672,8 +703,8 @@ const styles = StyleSheet.create({
   compatibilityNote: { color: ClayColors.warning, fontSize: 11, lineHeight: 16, marginHorizontal: 18, marginTop: 10, fontWeight: '600' },
   fourSheetWarning: { color: ClayColors.warning, fontSize: 11, lineHeight: 16, marginHorizontal: 18, marginTop: 10, fontWeight: '600' },
   previewScroller: { padding: 18, alignItems: 'flex-start' },
-  paperPreview: { backgroundColor: ClayColors.onPrimary, padding: 12, flexDirection: 'row', borderWidth: 2, borderColor: ClayColors.borderDarker, elevation: 4 },
-  miniSheet: { flex: 1, minWidth: 0, backgroundColor: ClayColors.onPrimary, borderWidth: 1, borderColor: '#000000', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
+  paperPreview: { backgroundColor: '#FFFFFF', padding: 12, flexDirection: 'row', borderWidth: 2, borderColor: ClayColors.borderDarker, elevation: 4 },
+  miniSheet: { flex: 1, minWidth: 0, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#000000', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, position: 'relative', overflow: 'hidden' },
   previewCutLine: { width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: ClayColors.textMuted, marginHorizontal: 8 },
   previewSheetSlot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   previewCutLineFourVertical: { position: 'absolute', top: 10, bottom: 10, width: 1, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: ClayColors.textMuted, zIndex: 3 },
@@ -702,7 +733,7 @@ const styles = StyleSheet.create({
   previewLayoutId: { position: 'absolute', bottom: 2, left: 12, right: 12, color: '#000000', fontSize: 4 },
   unsupportedPreview: { minHeight: 150, margin: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: ClayColors.warning, borderRadius: 16, backgroundColor: ClayColors.cardAmber, alignItems: 'center', justifyContent: 'center', padding: 20 },
   unsupportedPreviewTitle: { color: ClayColors.warning, fontSize: 14, fontWeight: '800', textAlign: 'center' },
-  unsupportedPreviewText: { color: '#78350F', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 6 },
+  unsupportedPreviewText: { color: ClayColors.warning, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 6 },
   feedback: { borderRadius: 16, borderWidth: 1.5, padding: 14 },
   feedbackSuccess: { backgroundColor: ClayColors.cardMint, borderColor: ClayColors.mintBorder },
   feedbackError: { backgroundColor: ClayColors.cardRose, borderColor: '#FCA5A5' },
@@ -770,20 +801,20 @@ const styles = StyleSheet.create({
   primaryActionText: { color: ClayColors.onPrimary, fontSize: 12, fontWeight: '800' },
   disabledAction: { opacity: 0.45 },
   modalScreen: { flex: 1, backgroundColor: ClayColors.bg },
-  modalHeader: { minHeight: 78, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: ClayColors.borderSubtle, backgroundColor: ClayColors.onPrimary },
+  modalHeader: { minHeight: 78, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: ClayColors.borderSubtle, backgroundColor: ClayColors.cardBg },
   modalHeaderCopy: { flex: 1, paddingRight: 12 },
   modalTitle: { color: ClayColors.textPrimary, fontSize: 18, fontWeight: '800' },
   modalSubtitle: { color: ClayColors.textMuted, fontSize: 11, marginTop: 3, maxWidth: 430, fontWeight: '600' },
   iconButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: ClayColors.surfaceInset, alignItems: 'center', justifyContent: 'center' },
   modalPreview: { flex: 1, justifyContent: 'center' },
   keyEditorContent: { padding: 18, paddingBottom: 30, gap: 8 },
-  keyEditorRow: { minHeight: 58, gap: 10, paddingVertical: 12, borderRadius: 16, backgroundColor: ClayColors.onPrimary, borderWidth: 1.5, borderColor: ClayColors.borderSubtle, paddingHorizontal: 12 },
+  keyEditorRow: { minHeight: 58, gap: 10, paddingVertical: 12, borderRadius: 16, backgroundColor: ClayColors.cardBg, borderWidth: 1.5, borderColor: ClayColors.borderSubtle, paddingHorizontal: 12 },
   keyEditorNumber: { color: ClayColors.textPrimary, fontSize: 14, fontWeight: '800', width: 44 },
   keyEditorOptions: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   keyEditorOption: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: ClayColors.borderDarker, backgroundColor: ClayColors.input, alignItems: 'center', justifyContent: 'center' },
   keyEditorOptionActive: { backgroundColor: ClayColors.primary, borderColor: ClayColors.primary },
   keyEditorOptionText: { color: ClayColors.textMuted, fontSize: 13, fontWeight: '700' },
   keyEditorOptionTextActive: { color: ClayColors.onPrimary, fontWeight: '800' },
-  keyEditorFooter: { padding: 18, borderTopWidth: 2, borderTopColor: ClayColors.borderSubtle, backgroundColor: ClayColors.onPrimary, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  keyEditorFooter: { padding: 18, borderTopWidth: 2, borderTopColor: ClayColors.borderSubtle, backgroundColor: ClayColors.cardBg, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   saveKeyAction: { minWidth: 150, flex: 1, height: 46, borderRadius: 16, backgroundColor: ClayColors.success, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderTopWidth: 2, borderTopColor: 'rgba(255, 255, 255, 0.4)', borderBottomWidth: 3.5, borderBottomColor: ClayColors.success },
 });

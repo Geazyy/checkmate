@@ -1,13 +1,16 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { QuestionItemAnalysis } from '../../types';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+
 
 interface ItemAnalysisTableProps {
   items: QuestionItemAnalysis[];
 }
 
 export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ items }) => {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const getBadgeStyle = (label: string) => {
     switch (label) {
       case 'Excellent':
@@ -68,7 +71,7 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ items }) =
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   container: {
     ...ClayCardStyle,
     padding: 16,

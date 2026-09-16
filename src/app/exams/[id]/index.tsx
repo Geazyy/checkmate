@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../../constants/theme';
 import { ActionButton as TouchableOpacity } from '../../../components/common/Controls';
 import React, { useEffect } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,9 +7,11 @@ import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppShell } from '../../../components/common/AppShell';
 import { useExamStore } from '../../../store/useExamStore';
 import { useScanStore } from '../../../store/useScanStore';
-import { ClayCardStyle, ClayColors } from '../../../constants/theme';
+
 
 export default function ExamWorkspaceScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { exams, answerKeysByExamId, setActiveExam } = useExamStore();
@@ -136,7 +139,7 @@ export default function ExamWorkspaceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 1040, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyTitle: { color: ClayColors.textPrimary, fontSize: 20, fontWeight: '800' },

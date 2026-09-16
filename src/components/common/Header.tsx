@@ -1,12 +1,15 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ClayColors } from '../../constants/theme';
+
 import { CheckCircle2 } from 'lucide-react-native';
 import { useSyncStatus } from '../../store/storage';
 
 export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ title = 'CheckMate', compact = false }) => {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const sync = useSyncStatus();
@@ -30,7 +33,7 @@ export const AppHeader: React.FC<{ title?: string; compact?: boolean }> = ({ tit
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayColors }: AppTheme) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -48,7 +51,7 @@ const styles = StyleSheet.create({
   },
   brandBadge: {
     maxWidth: '100%',
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
     paddingVertical: 6,

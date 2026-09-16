@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../../constants/theme';
 import { ActionButton as TouchableOpacity } from '../../../components/common/Controls';
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,9 +11,11 @@ import { useScanStore } from '../../../store/useScanStore';
 import { calculateExamAnalytics } from '../../../services/analytics/itemAnalysis';
 import { generateClassReportPDF } from '../../../services/export/pdfGenerator';
 import { exportExamResultsToExcel } from '../../../services/export/excelExporter';
-import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../../constants/theme';
+
 
 export default function AnalyticsDashboardScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { exams, setActiveExam } = useExamStore();
@@ -107,7 +110,7 @@ export default function AnalyticsDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayButtonStyle, ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: ClayColors.bg,

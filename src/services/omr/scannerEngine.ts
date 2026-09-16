@@ -2,6 +2,22 @@ import { AnswerKeyItem, AnswerDetectionStatus, BubbleAnalysisResult, FiducialAnc
 
 export const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
+export function getReviewStatus(item: ScanItemDetail): AnswerDetectionStatus {
+  if (item.detected_options.length > 1) return 'multiple';
+  return item.detection_status
+    ?? (item.is_ambiguous ? 'uncertain' : item.detected_options.length ? 'detected' : 'blank');
+}
+
+export function summarizeReview(items: ScanItemDetail[]) {
+  const summary = { correct: 0, incorrect: 0, blank: 0, multiple: 0, uncertain: 0 };
+  for (const item of items) {
+    const status = getReviewStatus(item);
+    if (status === 'detected') summary[item.is_correct ? 'correct' : 'incorrect']++;
+    else summary[status]++;
+  }
+  return summary;
+}
+
 // Default intensity thresholds for bubble fill ratio
 export const FILL_THRESHOLDS = {
   HIGH_FILL: 0.38,  // Marked solid bubble threshold
@@ -181,8 +197,11 @@ export function scoreScanResults(
 
   bubbleResults.forEach((res) => {
     const key = keyMap.get(res.questionNumber);
-    const correctOpts = key?.correct_options || ['A'];
-    const itemPoints = key?.points || 1.0;
+    if (!key?.correct_options.length) {
+      throw new Error(`Answer key missing for question ${res.questionNumber}. Complete the exam answer key before grading.`);
+    }
+    const correctOpts = key.correct_options;
+    const itemPoints = key.points ?? 1.0;
     maxScore += itemPoints;
 
     // Check correctness: detected options must match correct options exactly

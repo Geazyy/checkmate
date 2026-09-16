@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { trackPrivateImage } from '../../services/auth/privateImages';
@@ -16,10 +17,12 @@ import { useExamStore } from '../../store/useExamStore';
 import { scoreScanResults } from '../../services/omr/scannerEngine';
 import { analyzeAnswerSheetImageDetailed, OmrScanError, OMR_SCANNER_REVISION } from '../../services/omr/imageScanner';
 import { AppShell } from '../../components/common/AppShell';
-import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
+
 import { beginReviewTiming, checkCancelled, createScanTimer, scanStage, ScanCancelledError } from '../../services/omr/scanTiming';
 
 export default function CameraScanScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { examId } = useLocalSearchParams<{ examId?: string }>();
@@ -437,7 +440,7 @@ export default function CameraScanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayButtonStyle, ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   examPickerScreen: { flex: 1, backgroundColor: ClayColors.bg },
   examPickerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20 },
   pickerEyebrow: { color: ClayColors.primary, fontSize: 11, fontWeight: '800', letterSpacing: 0 },

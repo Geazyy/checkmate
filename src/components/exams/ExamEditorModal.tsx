@@ -1,5 +1,6 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../common/Controls';
-import { ClayColors } from '../../constants/theme';
+
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Check, X } from 'lucide-react-native';
@@ -15,6 +16,8 @@ type ExamEditorModalProps = {
 };
 
 export function ExamEditorModal({ exam, visible, onClose, onSave }: ExamEditorModalProps) {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [title, setTitle] = useState('');
   const [className, setClassName] = useState('');
   const [description, setDescription] = useState('');
@@ -135,7 +138,7 @@ export function ExamEditorModal({ exam, visible, onClose, onSave }: ExamEditorMo
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayColors }: AppTheme) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.78)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   panel: { width: '100%', maxWidth: 560, maxHeight: '92%', backgroundColor: '#182438', borderWidth: 1, borderColor: '#334155', borderRadius: 8, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 18, borderBottomWidth: 1, borderBottomColor: '#334155' },

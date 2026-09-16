@@ -1,4 +1,6 @@
 import { Platform, TextStyle, ViewStyle } from 'react-native';
+import { useMemo } from 'react';
+import { useAppearanceStore } from '../store/useAppearanceStore';
 
 export const Colors = {
   light: {
@@ -9,11 +11,11 @@ export const Colors = {
     textSecondary: '#475569',
   },
   dark: {
-    text: '#0F172A',
-    background: '#F0F4F8',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#EEF2FF',
-    textSecondary: '#475569',
+    text: '#F5F5F6',
+    background: '#141416',
+    backgroundElement: '#222226',
+    backgroundSelected: '#303044',
+    textSecondary: '#CBCBD2',
   },
 } as const;
 
@@ -139,3 +141,64 @@ export const ClayInputStyle: TextStyle = {
   borderWidth: 1.5,
   borderColor: '#CBD5E1',
 };
+
+type Palette = { [K in keyof typeof ClayColors]: string };
+const darkColors: Palette = {
+  ...ClayColors,
+  bg: '#141416', cardBg: '#222226', input: '#2B2B31',
+  surfaceMuted: '#27272C', surfaceInset: '#303036',
+  cardIndigo: '#303044', cardMint: '#193B32', cardSky: '#203744',
+  cardAmber: '#40341E', cardRose: '#422630', cardPurple: '#372C45',
+  indigoBorder: '#575476', skyBorder: '#38637B', mintBorder: '#316552',
+  skyText: '#82D3F6', shadow: '#000000', overlay: 'rgba(0,0,0,0.65)',
+  primary: '#A5A0FF', primaryBevel: '#6962D2', primaryLight: '#BDB9FF',
+  onPrimary: '#17152E',
+  success: '#6EE7B7', successBevel: '#23765B',
+  warning: '#FBBF24', warningBevel: '#8F651B',
+  danger: '#FDA4AF', dangerBevel: '#9F3550', accent: '#7DD3FC', accentBevel: '#267A94',
+  textPrimary: '#F5F5F6', textSecondary: '#CBCBD2', textMuted: '#A9A9B6',
+  borderLight: '#424249', borderSubtle: '#38383F', borderDarker: '#55555F',
+};
+
+export interface AppTheme {
+  mode: 'light' | 'dark';
+  ClayColors: Palette;
+  ClayCardStyle: ViewStyle;
+  ClayButtonStyle: ViewStyle;
+  ClayInputStyle: TextStyle;
+}
+
+const lightTheme: AppTheme = { mode: 'light', ClayColors, ClayCardStyle, ClayButtonStyle, ClayInputStyle };
+const darkTheme: AppTheme = {
+  mode: 'dark', ClayColors: darkColors,
+  ClayCardStyle: { ...ClayCardStyle, backgroundColor: darkColors.cardBg, borderColor: darkColors.borderSubtle,
+    shadowColor: '#000000', ...(Platform.OS === 'web' ? { boxShadow: '0 4px 12px rgba(0,0,0,0.3)' } : {}) },
+  ClayButtonStyle: { ...ClayButtonStyle, backgroundColor: darkColors.primary, borderTopColor: darkColors.borderLight,
+    borderBottomColor: darkColors.primaryBevel, shadowColor: '#000000' },
+  ClayInputStyle: { ...ClayInputStyle, backgroundColor: darkColors.input, borderColor: darkColors.borderDarker },
+};
+
+export function useAppTheme(): AppTheme {
+  return useAppearanceStore(state => state.mode) === 'dark' ? darkTheme : lightTheme;
+}
+
+export function useThemedStyles<T extends Record<string, object>>(factory: (theme: AppTheme) => T): T {
+  const theme = useAppTheme();
+  return useMemo(() => {
+    const styles = factory(theme);
+    if (theme.mode === 'light') return styles;
+    // Existing clay highlights are white in light mode; avoid glowing rims in dark mode.
+    return Object.fromEntries(Object.entries(styles).map(([name, value]) => {
+      const style = { ...value } as Record<string, unknown>;
+      for (const key of Object.keys(style)) {
+        if (/^border.*Color$/.test(key) && typeof style[key] === 'string'
+          && /^rgba?\(255,\s*255,\s*255/.test(style[key] as string)) {
+          style[key] = theme.ClayColors.borderSubtle;
+        }
+      }
+      if (style.boxShadow) style.boxShadow = '0 3px 10px rgba(0,0,0,0.3)';
+      if (style.shadowColor) style.shadowColor = '#000000';
+      return [name, style];
+    })) as T;
+  }, [factory, theme]);
+}

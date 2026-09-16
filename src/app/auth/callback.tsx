@@ -1,10 +1,12 @@
+import { useThemedStyles } from '../../constants/theme';
 import React from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useAuthStore } from '../../store/useAuthStore';
-import { styles } from '../../components/auth/AuthForm';
+import { createStyles as createAuthStyles } from '../../components/auth/AuthForm';
 import { cloudConfigured } from '../../services/supabase/client';
 export default function Callback() {
+  const styles = useThemedStyles(createAuthStyles);
  const { session, recovery, isLoading, error } = useAuthStore();
  if (isLoading) return <ActivityIndicator />;
  if (session) return <Redirect href={recovery ? '/auth/reset-password' : '/'} />;

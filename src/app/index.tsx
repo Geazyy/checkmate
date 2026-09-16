@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../constants/theme';
 import { ActionButton as TouchableOpacity } from '../components/common/Controls';
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -6,9 +7,11 @@ import { Href, useRouter } from 'expo-router';
 import { AppShell } from '../components/common/AppShell';
 import { useExamStore } from '../store/useExamStore';
 import { useScanStore } from '../store/useScanStore';
-import { ClayCardStyle, ClayColors } from '../constants/theme';
+
 
 export default function DashboardScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { exams, classes, setActiveExam, setSelectedClass } = useExamStore();
@@ -167,7 +170,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 1080, alignSelf: 'center', padding: 20, paddingBottom: 40 },
   introRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 },
   introCopy: { flex: 1 },

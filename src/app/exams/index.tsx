@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useCallback, useMemo, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
@@ -25,7 +26,7 @@ import { ExamEditorModal } from '../../components/exams/ExamEditorModal';
 import { useExamStore } from '../../store/useExamStore';
 import { useScanStore } from '../../store/useScanStore';
 import { Exam, OptionCount, QuestionCount } from '../../types';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+
 
 const QUESTION_COUNTS: QuestionCount[] = [10, 20, 25, 30, 40, 50, 100];
 type ExamFilter = 'active' | 'archived' | 'all';
@@ -38,6 +39,8 @@ const SORT_LABELS: Record<ExamSort, string> = {
 };
 
 export default function ExamsManagerScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const {
@@ -411,6 +414,8 @@ type ActionRowProps = {
 };
 
 function ActionRow({ icon: Icon, label, onPress, danger }: ActionRowProps) {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <TouchableOpacity style={styles.actionRow} onPress={onPress}>
       <Icon size={18} color={danger ? ClayColors.danger : ClayColors.textMuted} />
@@ -419,7 +424,7 @@ function ActionRow({ icon: Icon, label, onPress, danger }: ActionRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 1080, alignSelf: 'center', padding: 20, paddingBottom: 100 },
   pageHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 20 },
   pageHeadingCompact: { flexDirection: 'column' },
@@ -459,7 +464,7 @@ const styles = StyleSheet.create({
   createButtonText: { color: ClayColors.onPrimary, fontSize: 13, fontWeight: '800' },
   formPanel: {
     ...ClayCardStyle,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     padding: 20,
     marginBottom: 24,
   },
@@ -523,7 +528,7 @@ const styles = StyleSheet.create({
     borderColor: ClayColors.borderDarker,
   },
   segment: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  segmentActive: { backgroundColor: ClayColors.onPrimary, shadowColor: ClayColors.shadow, shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  segmentActive: { backgroundColor: ClayColors.cardBg, shadowColor: ClayColors.shadow, shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
   segmentText: { color: ClayColors.textMuted, fontSize: 12, fontWeight: '700' },
   segmentTextActive: { color: ClayColors.primary, fontWeight: '800' },
   scoreInputWrap: { position: 'relative' },
@@ -568,7 +573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
@@ -593,14 +598,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: ClayColors.borderDarker,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterButtonActive: { backgroundColor: ClayColors.cardIndigo, borderColor: ClayColors.primary },
   filterText: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '700' },
   filterTextActive: { color: ClayColors.primary, fontWeight: '800' },
-  sortButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: ClayColors.onPrimary, borderWidth: 1.5, borderColor: ClayColors.borderDarker },
+  sortButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: ClayColors.cardBg, borderWidth: 1.5, borderColor: ClayColors.borderDarker },
   sortText: { color: ClayColors.textPrimary, fontSize: 11, fontWeight: '700' },
   feedback: {
     flexDirection: 'row',
@@ -685,7 +690,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 28,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderWidth: 2,
     borderColor: ClayColors.borderSubtle,
     borderRadius: 22,
@@ -696,7 +701,7 @@ const styles = StyleSheet.create({
   actionMenu: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 22,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',
@@ -718,7 +723,7 @@ const styles = StyleSheet.create({
   confirmPanel: {
     width: '100%',
     maxWidth: 430,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 24,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.95)',

@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles } from '../constants/theme';
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,14 +10,15 @@ import { ArrowLeft, Camera, Save } from 'lucide-react-native';
 import { AppShell } from '../components/common/AppShell';
 import { ActionButton } from '../components/common/Controls';
 import { Avatar } from '../components/auth/Avatar';
-import { Field, styles } from '../components/auth/AuthForm';
+import { Field, createStyles as createAuthStyles } from '../components/auth/AuthForm';
 import { useAuthStore } from '../store/useAuthStore';
 import { requireSupabase } from '../services/supabase/client';
 import { refreshProfile, authRedirect } from '../services/auth/session';
 import { friendlyAuthError, validEmail } from '../services/auth/errors';
-import { ClayColors as C } from '../constants/theme';
+
 
 export default function Profile() {
+  const styles = useThemedStyles(createAuthStyles);
  const profile = useAuthStore(state => state.profile);
  const error = useAuthStore(state => state.error);
  if (!profile) return <AppShell title="Profile"><View style={styles.container}>
@@ -26,6 +28,8 @@ export default function Profile() {
  return <ProfileForm key={profile.id} />;
 }
 function ProfileForm() {
+  const { ClayColors: C } = useAppTheme();
+  const styles = useThemedStyles(createAuthStyles);
  const router = useRouter();
  const { profile, user, session } = useAuthStore();
  const [name, setName] = useState(profile?.full_name || user?.full_name || '');

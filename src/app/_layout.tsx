@@ -1,4 +1,5 @@
-import { ClayColors } from '../constants/theme';
+import { useAppTheme } from '../constants/theme';
+
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { startAuthentication } from '../services/auth/session';
@@ -10,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
+  const { ClayColors, mode } = useAppTheme();
   const { isLoading, session, recovery } = useAuthStore();
   useEffect(() => startAuthentication(), []);
   useEffect(() => { queryClient.clear(); }, [session?.user.id]);
@@ -18,7 +20,7 @@ export default function RootLayout() {
   </View>;
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="dark" />
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,

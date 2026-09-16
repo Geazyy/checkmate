@@ -1,14 +1,18 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../constants/theme';
 import React from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppShell } from '../components/common/AppShell';
 import { ActionButton } from '../components/common/Controls';
-import { ClayColors, Spacing } from '../constants/theme';
+import { Spacing } from '../constants/theme';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { SyncSettings } from '../components/auth/SyncSettings';
+import { AppearanceControl } from '../components/common/AppearanceControl';
 
 export default function SettingsScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { showConfidence, highlightFlagged, setPreference } = useSettingsStore();
   return <AppShell title="Settings">
@@ -17,6 +21,7 @@ export default function SettingsScreen() {
         <ChevronLeft size={20} color={ClayColors.primary} /><Text style={styles.backText}>Home</Text>
       </ActionButton>
       <Text style={styles.title}>Settings</Text>
+      <AppearanceControl />
       <SyncSettings />
       <Text style={styles.sectionTitle}>Scan review</Text>
       {[
@@ -31,7 +36,7 @@ export default function SettingsScreen() {
   </AppShell>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: Spacing.four, gap: Spacing.three },
   back: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   backText: { color: ClayColors.primary, fontWeight: '700' },

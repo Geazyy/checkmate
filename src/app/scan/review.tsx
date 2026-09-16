@@ -1,17 +1,20 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Check, RotateCcw, X } from 'lucide-react-native';
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScanStore } from '../../store/useScanStore';
 import { useExamStore } from '../../store/useExamStore';
-import { OPTION_LETTERS } from '../../services/omr/scannerEngine';
-import { ClayButtonStyle, ClayCardStyle, ClayColors } from '../../constants/theme';
+import { getReviewStatus, summarizeReview, OPTION_LETTERS } from '../../services/omr/scannerEngine';
+
 import { finishReviewTiming } from '../../services/omr/scanTiming';
 import { useSettingsStore } from '../../store/useSettingsStore';
 
 export default function ScanReviewScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { examId } = useLocalSearchParams<{ examId?: string }>();
   const insets = useSafeAreaInsets();
@@ -33,6 +36,8 @@ export default function ScanReviewScreen() {
   }, [resultId]);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 220 });
   const [imageAspect, setImageAspect] = useState(0.75);
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const items = useMemo(() => lastScannedResult?.items ?? [], [lastScannedResult?.items]);
   const previewUri = lastScannedResult?.cropped_sheet_image_url;
   useEffect(() => {
@@ -41,13 +46,10 @@ export default function ScanReviewScreen() {
       if (width && height) setImageAspect(width / height);
     });
   }, [previewUri]);
-  const summary = useMemo(() => ({
-    correct: items.filter((item) => item.is_correct).length,
-    incorrect: items.filter((item) => !item.is_correct).length,
-    blank: items.filter((item) => item.detection_status === 'blank').length,
-    multiple: items.filter((item) => item.detection_status === 'multiple').length,
-    uncertain: items.filter((item) => item.detection_status === 'uncertain').length,
-  }), [items]);
+  const summary = useMemo(() => summarizeReview(items), [items]);
+  const flaggedCount = summary.blank + summary.multiple + summary.uncertain;
+  const missingKey = !items.length || items.some(item => !keyMap.get(item.question_number)?.correct_options.length);
+  const visibleItems = reviewOnly ? items.filter(item => getReviewStatus(item) !== 'detected') : items;
 
   const previewMetrics = useMemo(() => {
     const containerAspect = previewSize.width / previewSize.height;
@@ -97,7 +99,7 @@ export default function ScanReviewScreen() {
     });
 
     const rawScore = (updatedItems || []).reduce((total, item) => {
-      return total + (item.is_correct ? keyMap.get(item.question_number)?.points || 1 : 0);
+      return total + (item.is_correct ? keyMap.get(item.question_number)?.points ?? 1 : 0);
     }, 0);
     const percentageScore = lastScannedResult.max_score
       ? Number(((rawScore / lastScannedResult.max_score) * 100).toFixed(2))
@@ -118,6 +120,8 @@ export default function ScanReviewScreen() {
   };
 
   const handleConfirm = () => {
+    if (missingKey) return;
+    setConfirmOpen(false);
     confirmLastScannedResult();
     if (examId) {
       router.replace(`/exams/${examId}` as Href);
@@ -150,7 +154,7 @@ export default function ScanReviewScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>Detected Answers (Tap option to override)</Text>
+      <Text style={styles.sectionHeader}>Detected Answers</Text>
 
       <View style={styles.summaryBar}>
         {[
@@ -167,6 +171,21 @@ export default function ScanReviewScreen() {
         ))}
       </View>
 
+      <View style={styles.filterBar}>
+        {[false, true].map(flagged => (
+          <TouchableOpacity key={String(flagged)} accessibilityRole="radio"
+            accessibilityState={{ checked: reviewOnly === flagged }}
+            style={[styles.filterButton, reviewOnly === flagged && styles.filterActive]}
+            onPress={() => setReviewOnly(flagged)}>
+            <Text style={{ color: reviewOnly === flagged ? ClayColors.onPrimary : ClayColors.textPrimary, fontWeight: '700' }}>
+              {flagged ? `Needs review (${flaggedCount})` : `All (${items.length})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {missingKey && <Text accessibilityRole="alert" style={styles.sectionHeader}>Answer key incomplete. Complete the exam key before grading.</Text>}
+      {reviewOnly && !visibleItems.length && <Text style={styles.sectionHeader}>No answers need review.</Text>}
+
       {lastScannedResult.cropped_sheet_image_url && (
         <View
           style={styles.sheetPreview}
@@ -181,7 +200,7 @@ export default function ScanReviewScreen() {
             resizeMode="contain"
           />
           {highlightFlagged && items
-            .filter((item) => item.detection_status !== 'detected' && item.source_region)
+            .filter((item) => getReviewStatus(item) !== 'detected' && item.source_region)
             .map((item) => {
               const region = item.source_region!;
               return (
@@ -205,9 +224,8 @@ export default function ScanReviewScreen() {
 
       {/* Detected Bubbles Review Grid */}
       <View style={styles.gridList}>
-        {items.map((item) => {
-          const detectionStatus = item.detection_status
-            ?? (item.is_ambiguous ? 'uncertain' : item.detected_options.length ? 'detected' : 'blank');
+        {visibleItems.map((item) => {
+          const detectionStatus = getReviewStatus(item);
           return (
           <View
             key={item.question_number}
@@ -275,16 +293,36 @@ export default function ScanReviewScreen() {
           <Text style={styles.discardText}>Retake Photo</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleConfirm}>
+        <TouchableOpacity disabled={missingKey} style={[styles.saveBtn, missingKey && { opacity: 0.5 }]} onPress={() => flaggedCount ? setConfirmOpen(true) : handleConfirm()}>
           <Check size={17} color={ClayColors.onPrimary} />
           <Text style={styles.saveText}>Grade Answers</Text>
         </TouchableOpacity>
       </View>
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmDialog} accessibilityViewIsModal>
+            <Text style={styles.studentName}>Grade unresolved answers?</Text>
+            <Text style={styles.studentSub}>{summary.blank} blank, {summary.multiple} multiple, {summary.uncertain} uncertain. These answers receive no points.</Text>
+            <TouchableOpacity style={styles.dialogButton} onPress={() => { setConfirmOpen(false); setReviewOnly(true); }}>
+              <Text style={styles.discardText}>Review answers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.btn} onPress={handleConfirm}>
+              <Text style={styles.btnText}>Grade anyway</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayButtonStyle, ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
+  filterBar: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, gap: 8 },
+  filterButton: { flex: 1, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: ClayColors.borderDarker, justifyContent: 'center', alignItems: 'center', padding: 8 },
+  filterActive: { backgroundColor: ClayColors.primary },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  confirmDialog: { backgroundColor: ClayColors.cardBg, borderRadius: 8, padding: 20, gap: 16, width: '100%', maxWidth: 420 },
+  dialogButton: { minHeight: 44, padding: 12, backgroundColor: ClayColors.surfaceInset, borderRadius: 8 },
   container: {
     flex: 1,
     backgroundColor: ClayColors.bg,
@@ -333,7 +371,7 @@ const styles = StyleSheet.create({
     height: 180,
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
@@ -350,7 +388,7 @@ const styles = StyleSheet.create({
     left: -1,
     top: -14,
     color: ClayColors.warning,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     fontSize: 9,
     fontWeight: '800',
   },
@@ -409,7 +447,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 16,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderTopWidth: 1.5,
     borderTopColor: ClayColors.borderSubtle,
     gap: 12,

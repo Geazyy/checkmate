@@ -1,10 +1,11 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Link, useRouter } from 'expo-router';
 import { AccessibleInput, ActionButton } from '../common/Controls';
-import { ClayColors as C, ClayCardStyle } from '../../constants/theme';
+
 import { cloudConfigured, rememberSession, requireSupabase } from '../../services/supabase/client';
 import { authRedirect, finishRecovery, logout } from '../../services/auth/session';
 import { friendlyAuthError, validEmail, validPassword } from '../../services/auth/errors';
@@ -12,6 +13,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 
 type Mode = 'login' | 'register' | 'forgot-password' | 'reset-password';
 export function AuthForm({ mode }: { mode: Mode }) {
+  const { ClayColors: C } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
  const router = useRouter();
  const [name, setName] = useState('');
  const [email, setEmail] = useState('');
@@ -109,9 +112,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
  </SafeAreaView>;
 }
 export function Field({ label, ...props }: React.ComponentProps<typeof AccessibleInput> & { label: string }) {
+  const styles = useThemedStyles(createStyles);
  return <View style={{ gap: 6 }}><Text style={styles.label}>{label}</Text><AccessibleInput {...props} accessibilityLabel={label} style={styles.input} /></View>;
 }
-export const styles = StyleSheet.create({
+export const createStyles = ({ ClayColors: C, ClayCardStyle }: AppTheme) => StyleSheet.create({
  root: { flex: 1, backgroundColor: C.bg },
  container: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 20 },
  brand: { fontSize: 28, color: C.primary, fontWeight: '800' },

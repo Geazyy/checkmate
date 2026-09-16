@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import { AccessibleInput as TextInput, ActionButton as TouchableOpacity } from '../../components/common/Controls';
 import React, { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { Check, ChevronDown, ChevronUp, Plus, Search, UserRound, X } from 'lucid
 import { AppShell } from '../../components/common/AppShell';
 import { useExamStore } from '../../store/useExamStore';
 import { ClassSection, Student } from '../../types';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+
 import { useRosterStore } from '../../store/useRosterStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { randomUUID } from 'expo-crypto';
@@ -41,6 +42,8 @@ export const LEGACY_DEMO_STUDENTS: Student[] = [
 ];
 
 export default function RosterScreen() {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const { classes, selectedClassId, setSelectedClass, addClass } = useExamStore();
   const { studentsByClassId, setStudentsByClassId } = useRosterStore();
   const user = useAuthStore(state => state.user);
@@ -366,7 +369,7 @@ export default function RosterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   content: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   headerRow: {
     flexDirection: 'row',
@@ -448,7 +451,7 @@ const styles = StyleSheet.create({
   classPickerMeta: { color: ClayColors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 2 },
   classPickerPanel: {
     marginTop: 10,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderWidth: 1.5,
     borderColor: ClayColors.borderDarker,
     borderRadius: 16,
@@ -490,7 +493,7 @@ const styles = StyleSheet.create({
   noClassResults: { paddingVertical: 24, alignItems: 'center' },
   noClassResultsText: { color: ClayColors.textMuted, fontSize: 12, fontWeight: '600' },
   searchBar: {
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 20,
     paddingHorizontal: 16,
     minHeight: 50,
@@ -578,7 +581,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    backgroundColor: ClayColors.onPrimary,
+    backgroundColor: ClayColors.cardBg,
     borderRadius: 22,
     borderWidth: 2,
     borderColor: ClayColors.borderSubtle,

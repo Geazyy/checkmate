@@ -1,12 +1,14 @@
+import { useThemedStyles, AppTheme } from '../../constants/theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { ClayCardStyle, ClayColors } from '../../constants/theme';
+
 
 interface HistogramProps {
   data: { range: string; count: number }[];
 }
 
 export const ScoreHistogram: React.FC<HistogramProps> = ({ data }) => {
+  const styles = useThemedStyles(createStyles);
   const maxCount = Math.max(1, ...data.map((d) => d.count));
 
   return (
@@ -35,7 +37,7 @@ export const ScoreHistogram: React.FC<HistogramProps> = ({ data }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayCardStyle, ClayColors }: AppTheme) => StyleSheet.create({
   container: {
     ...ClayCardStyle,
     padding: 16,

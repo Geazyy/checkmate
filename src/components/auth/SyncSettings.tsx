@@ -1,11 +1,13 @@
+import { useThemedStyles } from '../../constants/theme';
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { ActionButton } from '../common/Controls';
-import { styles } from './AuthForm';
+import { createStyles as createAuthStyles } from './AuthForm';
 import { currentOwner, useSyncStatus } from '../../store/storage';
 import { canImportLegacy, importLegacyWorkspace } from '../../services/auth/workspace';
 import { synchronize, resolveConflicts } from '../../services/sync/engine';
 export function SyncSettings() {
+  const styles = useThemedStyles(createAuthStyles);
  const sync = useSyncStatus();
  const [legacy, setLegacy] = useState(false);
  const [confirm, setConfirm] = useState(false);

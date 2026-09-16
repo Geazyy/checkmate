@@ -1,10 +1,12 @@
+import { useAppTheme, useThemedStyles, AppTheme } from '../../constants/theme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Flashlight, FlashlightOff, Images } from 'lucide-react-native';
 import { ActionButton } from '../common/Controls';
-import { ClayColors } from '../../constants/theme';
+
 
 export function CameraGuide() {
+  const styles = useThemedStyles(createStyles);
   return <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden>
     <View style={[styles.corner, styles.topLeft]} />
     <View style={[styles.corner, styles.topRight]} />
@@ -24,6 +26,8 @@ interface CameraControlsProps {
 }
 
 export function CameraControls(props: CameraControlsProps) {
+  const { ClayColors } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return <View style={styles.controls}>
     <ActionButton accessibilityLabel={props.torchEnabled ? 'Turn torch off' : 'Turn torch on'}
       accessibilityState={{ selected: props.torchEnabled }}
@@ -44,7 +48,7 @@ export function CameraControls(props: CameraControlsProps) {
   </View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ ClayColors }: AppTheme) => StyleSheet.create({
   corner: { position: 'absolute', width: 24, height: 24, borderColor: ClayColors.accent, borderWidth: 2 },
   topLeft: { top: 14, left: 14, borderRightWidth: 0, borderBottomWidth: 0 },
   topRight: { top: 14, right: 14, borderLeftWidth: 0, borderBottomWidth: 0 },
